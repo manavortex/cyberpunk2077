@@ -74,9 +74,11 @@ for %%P in (%rename_paths%) do (
         if exist "!new_path!" (
           xcopy /s /q /y "!absolute_path!" "!new_path!"
           call :delete_file_or_folder_without_prompt "!absolute_path!"
+          mkdir "!absolute_path!"
         ) else (
           for %%i in ("!absolute_path!") do set "foldername=%%~ni"
           ren "!absolute_path!" "!foldername!_"
+          mkdir "!absolute_path!"
         )
         
         REM append it to array so we can print it later
