@@ -2,6 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
+REM Up-to-date with 1.6.2_hotfix after the DLSS patch
 
 REM for indenting user output
 set "tab=    "
