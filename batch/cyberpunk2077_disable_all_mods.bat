@@ -44,7 +44,7 @@ REM =================================================================
 REM the files that we want to remove/rename
 REM =================================================================
 
-set "rename_paths=archive\pc\mod mods bin\x64\plugins\cyber_engine_tweaks r6\scripts r6\tweaks red4ext engine\tools"
+set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools"
 set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config engine\tools r6\cache r6\config r6\inputs V2077"
 
 
