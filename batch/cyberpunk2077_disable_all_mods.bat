@@ -138,8 +138,8 @@ goto :eof
   set "file=%*"
   if not exist !file! goto :eof
 
-  set /p user_input="!file! already exists and will be overwritten. Type [Y] to delete it now    "
-  if /i not "%user_input%"=="Y" goto :eof
+  set /p user_input="!file! already exists, earlier files will be overwritten. You can ignore this or type [DELETE] to delete it now    "
+  if /i not "%user_input%"=="DELETE" goto :eof
 
   call :delete_file_or_folder_without_prompt !file!
   
