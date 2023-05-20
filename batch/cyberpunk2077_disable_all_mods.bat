@@ -1,6 +1,11 @@
 @ECHO OFF
 setlocal enabledelayedexpansion
 
+REM ==================================================================
+REM Remove the next line to disable file deletion (e.g. for debugging)
+set DELETE_FILES=1
+REM ==================================================================
+
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
 REM Up-to-date with 1.6.2_hotfix after the DLSS patch
 
@@ -8,10 +13,10 @@ REM for indenting user output
 set "tab=    "
 set separator=--------------------------------------------------------------------------------------
 
-REM =================================================================
+REM ==================================================================
 REM Make sure that we're in the cyberpunk directory
 REM yell at user if we aren't
-REM =================================================================
+REM ==================================================================
 
 if "%~1" == "" (
   pushd %~dp0
@@ -91,14 +96,16 @@ REM pop them in an array for proper iterating
 set numDeletedFiles=0
 set "deleted_paths_list="
 
-for %%P in (!delete_paths!) do (  
-    set "absolute_path=!CYBERPUNKDIR!\%%~P"
-    if exist "!absolute_path!" (
-      REM append it to array so we can print it later
-      set /A numDeletedFiles+=1
-      set deleted_paths_list[!numDeletedFiles!]=!absolute_path!
-      call :delete_file_or_folder_without_prompt "!absolute_path!"    
-    )    
+if "%DELETE_FILES%"=="1" (
+  for %%P in (!delete_paths!) do (  
+      set "absolute_path=!CYBERPUNKDIR!\%%~P"
+      if exist "!absolute_path!" (
+        REM append it to array so we can print it later
+        set /A numDeletedFiles+=1
+        set deleted_paths_list[!numDeletedFiles!]=!absolute_path!
+        call :delete_file_or_folder_without_prompt "!absolute_path!"    
+      )    
+  )
 )
 
 REM =================================================================
