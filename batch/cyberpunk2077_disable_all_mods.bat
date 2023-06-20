@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM ==================================================================
 REM Remove the next line to disable file deletion (e.g. for debugging)
-REM set DELETE_FILES=1
+set DELETE_FILES=1
 REM ==================================================================
 
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
