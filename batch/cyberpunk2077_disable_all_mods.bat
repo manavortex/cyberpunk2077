@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM ==================================================================
 REM Remove the next line to disable file deletion (e.g. for debugging)
-set DELETE_FILES=1
+REM set DELETE_FILES=1
 REM ==================================================================
 
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
@@ -42,6 +42,20 @@ if not exist "!CYBERPUNKDIR!\REDprelauncher.exe" (
   echo !separator!
   pause
   goto :eof
+)
+
+
+REM Create directory for log files
+if not exist "!CYBERPUNKDIR!\_LOGS" (
+  mkdir "!CYBERPUNKDIR!\_LOGS"
+)
+
+set "LOGFILE=!CYBERPUNKDIR!\_LOGS\disable_all_mods.txt"
+
+if not exist "!LOGFILE!" (
+    echo. > "!LOGFILE!"
+) else (
+    break > "!LOGFILE!"
 )
 
 
@@ -113,29 +127,35 @@ REM show user feedback
 REM =================================================================
 
 if (!numRenamedFiles!) gtr (0) (
-  echo.
-  echo Your installation has been reset. Your mods and settings have been backed up:
-  echo !separator!
-  for /L %%i in (1,1,%numRenamedFiles%) do echo !tab!!renamed_paths_list[%%i]!
+  echo. >> "!LOGFILE!"
+  echo Your installation has been reset. Your mods and settings have been backed up: >> "!LOGFILE!"
+  echo !separator! >> "!LOGFILE!"
+  for /L %%i in (1,1,%numRenamedFiles%) do echo !tab!!renamed_paths_list[%%i]! >> "!LOGFILE!"
   echo.
 ) else (
-  echo.
-  echo !separator!
-  echo !tab!Your installation has been reset.
+  echo. >> "!LOGFILE!"
+  echo !separator! >> "!LOGFILE!"
+  echo !tab!Your installation has been reset. >> "!LOGFILE!"
 )
 
 
 if (!numDeletedFiles!) gtr (0) (
-  echo The following files were deleted:
-  echo !separator!
-  for /L %%i in (1,1,%numDeletedFiles%) do echo !tab!!deleted_paths_list[%%i]!
-  echo.
+  echo The following files were deleted: >> "!LOGFILE!"
+  echo !separator! >> "!LOGFILE!"
+  for /L %%i in (1,1,%numDeletedFiles%) do echo !tab!!deleted_paths_list[%%i]! >> "!LOGFILE!"
+  echo. >> "!LOGFILE!"
 )
 
-echo !separator!
-echo !tab!Please verify your game files now.
-echo !separator!
-echo.
+echo !separator! >> "!LOGFILE!"
+echo !tab!Please verify your game files now. >> "!LOGFILE!"
+echo !separator!>> "!LOGFILE!"
+echo. >> "!LOGFILE!"
+
+type "!LOGFILE!"
+echo .
+echo You can find this output in !LOGFILE!
+echo For further help, check https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-users/user-guide-troubleshooting#a-fresh-install-starting-from-scratch
+
 pause
 
 goto :eof
@@ -145,7 +165,7 @@ goto :eof
   set "file=%*"
   if not exist !file! goto :eof
 
-  set /p user_input="!file! already exists, earlier files will be overwritten. You can type [DELETE] to delete it now, or press return to proceed    "
+  set /p user_input="!file! already contains an earlier backup. You can type [DELETE] to delete it now (you do not need to)    "
   if /i not "%user_input%"=="DELETE" goto :eof
 
   call :delete_file_or_folder_without_prompt !file!
