@@ -122,6 +122,13 @@ if "%DELETE_FILES%"=="1" (
   )
 )
 
+REM now that we're done deleting, make sure that r6\cache\modded exist to prevent file access errors
+if exist "!CYBERPUNKDIR!\r6\cache" (
+  if not exist "!CYBERPUNKDIR!\r6\cache\modded" (
+    mkdir "!CYBERPUNKDIR!\r6\cache\modded"
+  )
+)
+
 REM =================================================================
 REM show user feedback
 REM =================================================================
