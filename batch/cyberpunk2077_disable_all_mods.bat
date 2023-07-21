@@ -19,7 +19,7 @@ REM yell at user if we aren't
 REM ==================================================================
 
 if "%~1" == "" (
-  pushd %~dp0
+  pushd "%~dp0"
   set "CYBERPUNKDIR=!CD!"
   popd
 ) else (
