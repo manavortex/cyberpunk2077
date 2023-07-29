@@ -67,6 +67,18 @@ set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4e
 set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\platform engine\tools r6\cache r6\config r6\inputs V2077"
 
 
+echo This script will delete the following files. Press any key to proceed, or 
+for %%P in (!delete_paths!) do (  
+  set "relative_path=%%~P"
+  set "absolute_path=!CYBERPUNKDIR!\%%~P"
+    if exist "!absolute_path!" (
+      echo !tab!!relative_path!
+    ) 
+)
+set /p user_input="Press any key to proceed. Close this window to abort."
+Pause
+goto :eof
+
 REM =================================================================
 REM check for existing backups
 REM =================================================================
