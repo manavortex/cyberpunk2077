@@ -75,9 +75,8 @@ for %%P in (!delete_paths!) do (
       echo !tab!!relative_path!
     ) 
 )
-set /p user_input="Press any key to proceed. Close this window to abort."
+echo "Press any key to proceed. Close this window to abort."
 Pause
-goto :eof
 
 REM =================================================================
 REM check for existing backups
