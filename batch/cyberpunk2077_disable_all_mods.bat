@@ -63,8 +63,8 @@ REM =================================================================
 REM the files that we want to remove/rename
 REM =================================================================
 
-set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc\input_loader.ini engine\config\platform\pc"
-set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\platform engine\tools r6\cache r6\config r6\inputs V2077"
+set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc"
+set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base engine\tools r6\cache r6\config r6\inputs V2077"
 
 
 echo This script will delete the following files. Press any key to proceed, or 
