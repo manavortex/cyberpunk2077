@@ -7,7 +7,7 @@ set DELETE_FILES=1
 REM ==================================================================
 
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
-REM Up-to-date with 1.6.2_hotfix after the DLSS patch
+REM Up-to-date with 1.6.3_hotfix
 
 REM for indenting user output
 set "tab=    "
@@ -68,7 +68,7 @@ set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\
 
 
 if "%DELETE_FILES%"=="1" (
-  echo This script will delete the following files (disable by deleting  line 6 from this script)
+  echo This script will delete the following files (disable by deleting line 6 from this script and restarting it)
   echo.
   for %%P in (!delete_paths!) do (  
     set "relative_path=%%~P"
