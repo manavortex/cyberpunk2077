@@ -2,7 +2,7 @@ import bpy
 
 # Specify the filename where you want to save the output.
 # Make sure to use an existing folder!
-output_filename = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\apartment_corpo_cleaned_up.archive.xl"
+output_filename = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\tutorial_archivexl_sector_deletions.archive.xl"
 
 # For indenting your .xl file
 indent="  "
