@@ -1,23 +1,33 @@
 import bpy
+import re
 
 wolvenkit_project = "apartment_dogtown_cleaned_up"
 mod_directory = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\"
 project_directory = "F:\\CyberpunkFiles\\world_editing\\"
 
 export_to_mod_dir = True
-is_DLC = False
-consider_partial_deletions = False
-
-delete_partials = [
-    # [ "soda_can", "trash" ],
-    # [ "squat_clothes" ],
-]
+is_DLC = True
+consider_partial_deletions = True
 
 # Specify the filename where you want to save the output. Make sure to use an existing folder!
 output_filename = f"{project_directory}\\{wolvenkit_project}\\source\\resources\\{wolvenkit_project}.archive.xl"
 
 if export_to_mod_dir:
     output_filename = f"{mod_directory}\\{wolvenkit_project}.archive.xl"
+
+# if an item matches all strings in one of the sub-arrays, delete it
+delete_partials = [
+    [ "soda_can" ],
+    [ "squat_clothes" ],
+    [ "takeout_cup" ],
+    [ "trash" ],
+]
+
+# if an item matches all strings in one of the sub-arrays, keep it. Supports regular expression.
+keep_partials = [ 
+    [ "^q\d\d" ],
+]
+
 
 # For indenting your .xl file
 indent="  "
@@ -33,10 +43,20 @@ def countChildNodes(collection):
         numChildNodes = collection['expectedNodes']
         return numChildNodes
 
+
+# Compile regular expressions for keep_partials
+compiled_partials = [[re.compile(p) for p in partials] for partials in keep_partials]
+
 # Function to find collections without children (these contain deletions)
 def find_empty_collections(collection):
     empty_collections = []
     is_deletion_candidate = 'nodeIndex' in collection and 'nodeType' in collection
+    
+    # check if we want to keep this collection
+    for keep_check in compiled_partials:
+        if all(p.search(collection.name) for p in keep_check):
+            return empty_collections
+                
     if len(collection.children) == 0 and is_deletion_candidate:
         if len(collection.objects) == 0:
             empty_collections.append(collection)
