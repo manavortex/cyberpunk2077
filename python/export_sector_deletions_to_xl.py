@@ -5,8 +5,7 @@ wolvenkit_project = "apartment_dogtown_cleaned_up"
 mod_directory = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\"
 project_directory = "F:\\CyberpunkFiles\\world_editing\\"
 
-export_to_mod_dir = True
-is_DLC = True
+export_to_mod_dir = False
 consider_partial_deletions = True
 
 # Specify the filename where you want to save the output. Make sure to use an existing folder!
@@ -26,6 +25,7 @@ delete_partials = [
 # if an item matches all strings in one of the sub-arrays, keep it. Supports regular expression.
 keep_partials = [ 
     [ "^q\d\d" ],
+    # ["entropy_lamp.*"]
 ]
 
 
@@ -51,12 +51,12 @@ compiled_partials = [[re.compile(p) for p in partials] for partials in keep_part
 def find_empty_collections(collection):
     empty_collections = []
     is_deletion_candidate = 'nodeIndex' in collection and 'nodeType' in collection
-    
+
     # check if we want to keep this collection
     for keep_check in compiled_partials:
         if all(p.search(collection.name) for p in keep_check):
             return empty_collections
-                
+
     if len(collection.children) == 0 and is_deletion_candidate:
         if len(collection.objects) == 0:
             empty_collections.append(collection)
@@ -68,24 +68,23 @@ def find_empty_collections(collection):
                 empty_collections.append(collection)
         
     for child_collection in collection.children:
-        empty_collections.extend(find_empty_collections(child_collection))
-        
+        empty_collections.extend(find_empty_collections(child_collection))        
 
     return empty_collections
 
-sectorPath = "base\\worlds\\03_night_city\\_compiled\\default"
-if is_DLC:
-    sectorPath = f"{sectorPath}\\ep1"
+
 # Function to write to a text file
 def to_archive_xl(filename):
     with open(filename, "w") as file:
         file.write("streaming:\n")
         file.write(f"{indent}sectors:\n")
-        for sectorName in deletions:
-            file.write(f"{indent}{indent}- path: {sectorPath}\\{sectorName}\n".replace("ep1\\ep1", "ep1"))
-            file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[sectorName]}\n")
+        for file_path in deletions:
+            folder_path, sector_path = file_path.split("base", 1)
+            
+            file.write(f"{indent}{indent}- path: {sector_path}\n")
+            file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[file_path]}\n")
             file.write(f"{indent}{indent}{indent}nodeDeletions:\n")
-            sectorData = deletions[sectorName]
+            sectorData = deletions[file_path]
 
             for empty_collection in sectorData:
                 file.write(f"{indent}{indent}{indent}{indent}# {empty_collection.name}\n")
@@ -94,9 +93,10 @@ def to_archive_xl(filename):
 
 # Iterate over matching collections and find empty ones
 for sectorCollection in [c for c in bpy.data.collections if c.name.endswith("streamingsector")]:
-    expectedNodes[sectorCollection.name] = countChildNodes(sectorCollection)
+    file_path = sectorCollection["filepath"]    
+    expectedNodes[file_path] = countChildNodes(sectorCollection)
     collections = find_empty_collections(sectorCollection)
     if len(collections) > 0:
-        deletions[sectorCollection.name] = collections
+        deletions[file_path] = collections
 
 to_archive_xl(output_filename)
