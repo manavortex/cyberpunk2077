@@ -61,7 +61,7 @@ def find_empty_collections(collection):
         if len(collection.objects) == 0:
             empty_collections.append(collection)
         if consider_partial_deletions and len(collection.children) > 0 and not collection.children[0]["Name"].startswith("submesh_00"):
-                empty_collections.append(collection)
+            empty_collections.append(collection)
     elif is_deletion_candidate:
         for deletion_check in delete_partials:
             if all(partial in collection.name for partial in deletion_check):
