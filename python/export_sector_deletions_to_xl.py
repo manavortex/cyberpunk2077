@@ -106,6 +106,7 @@ def to_archive_xl(filename):
 # Iterate over matching collections and find empty ones
 for sectorCollection in [c for c in bpy.data.collections if c.name.endswith("streamingsector")]:
     prefix, file_path = sectorCollection["filepath"].split('raw\\')
+    file_path = file_path.replace(".json", "")
     expectedNodes[file_path] = countChildNodes(sectorCollection)
     collections = find_empty_collections(sectorCollection)
     if len(collections) > 0:
