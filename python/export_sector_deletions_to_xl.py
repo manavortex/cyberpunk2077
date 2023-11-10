@@ -5,7 +5,7 @@ wolvenkit_project = "apartment_dogtown_cleaned_up"
 mod_directory = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\"
 project_directory = "F:\\CyberpunkFiles\\world_editing\\"
 
-export_to_mod_dir = False
+export_to_mod_dir = True
 consider_partial_deletions = True
 
 # Specify the filename where you want to save the output. Make sure to use an existing folder!
@@ -78,22 +78,34 @@ def to_archive_xl(filename):
     with open(filename, "w") as file:
         file.write("streaming:\n")
         file.write(f"{indent}sectors:\n")
-        for file_path in deletions:
-            folder_path, sector_path = file_path.split("base", 1)
-            
-            file.write(f"{indent}{indent}- path: {sector_path}\n")
-            file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[file_path]}\n")
+        for sectorPath in deletions:
+            deletedNodes = []
+            file.write(f"{indent}{indent}- path: {sectorPath}\n")
+            file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[sectorPath]}\n")
             file.write(f"{indent}{indent}{indent}nodeDeletions:\n")
-            sectorData = deletions[file_path]
+            sectorData = deletions[sectorPath]
 
+            currentNodeIndex = -1
+            currentNodeComment = ''
+            currentNodeType = ''
             for empty_collection in sectorData:
-                file.write(f"{indent}{indent}{indent}{indent}# {empty_collection.name}\n")
-                file.write(f"{indent}{indent}{indent}{indent}- index: {empty_collection['nodeIndex']}\n")
-                file.write(f"{indent}{indent}{indent}{indent}{indent}type: {empty_collection['nodeType']}\n")
+                if empty_collection['nodeIndex'] > currentNodeIndex:
+                    # new node! write the old one                    
+                    file.write(f"{indent}{indent}{indent}{indent}# {currentNodeComment}\n")
+                    file.write(f"{indent}{indent}{indent}{indent}- index: {currentNodeIndex}\n")
+                    file.write(f"{indent}{indent}{indent}{indent}{indent}type: {currentNodeType}\n")
+                    
+                    # set instance variables
+                    currentNodeIndex = empty_collection['nodeIndex']
+                    currentNodeComment = empty_collection.name
+                    currentNodeType = empty_collection['nodeType']
+                elif empty_collection['nodeIndex'] == currentNodeIndex:
+                    currentNodeComment = f"{currentNodeComment}, {empty_collection.name}"
+
 
 # Iterate over matching collections and find empty ones
 for sectorCollection in [c for c in bpy.data.collections if c.name.endswith("streamingsector")]:
-    file_path = sectorCollection["filepath"]    
+    prefix, file_path = sectorCollection["filepath"].split('raw\\')
     expectedNodes[file_path] = countChildNodes(sectorCollection)
     collections = find_empty_collections(sectorCollection)
     if len(collections) > 0:
