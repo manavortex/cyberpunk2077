@@ -2,6 +2,11 @@ import os
 import yaml
 import json
 
+# Converts your node removal .xl files for ArchiveXL 1.9
+# Script frankensteined by me from Simarillius's code in the Blender plugin, then edited by me, then edited by Sim, then edited by me.
+# Wouldn't exist without him, so a million thanks <3
+
+
 # the wolvenkit project with your sector json files
 wolvenkit_project="F:\\CyberpunkFiles\\world_editing\\apartment_glen_cleaned_up"
 
@@ -15,7 +20,7 @@ output_file="C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\apartment_glen_cleaned
 # For indenting your .xl file
 indent="  "
 
-# --------------------------- EDIT BELOW THIS LINE AT OWN RISK -----------------------------------
+# --------------------------- DO NOT EDIT BELOW THIS LINE -------------------------------------
 
 deletions = {}
 expectedNodes = {}
