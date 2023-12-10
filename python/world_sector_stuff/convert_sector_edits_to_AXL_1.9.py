@@ -2,6 +2,9 @@ import bpy
 import re
 import os
 
+# For ArchiveXL >= 1.9.0
+# Needs the changes from https://github.com/WolvenKit/Cyberpunk-Blender-add-on/pull/99
+
 wolvenkit_project = "_world_editing_debug_project"
 mod_directory = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\"
 project_directory = "F:\\CyberpunkFiles\\world_editing\\"
