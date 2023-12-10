@@ -8,13 +8,13 @@ import json
 
 
 # the wolvenkit project with your sector json files
-wolvenkit_project="F:\\CyberpunkFiles\\world_editing\\apartment_glen_cleaned_up"
+wolvenkit_project="F:\\CyberpunkFiles\\world_editing\\Apartment_Loft_cleaned_up"
 
 # the file that you want to convert
-original_file="C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\apartment_glen_cleaned_up.archive.xl"
+original_file="F:\\CyberpunkFiles\\world_editing\\apartment_loft_cleaned_up\\source\\resources\\apartment_loft_cleaned_up.archive.xl"
 
 # the file that you want to write to
-output_file="C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\apartment_glen_cleaned_up.converted.archive.xl"
+output_file="F:\\CyberpunkFiles\\world_editing\\apartment_loft_cleaned_up\\source\\resources\\apartment_loft_cleaned_up.converted.archive.xl"
 
 
 # For indenting your .xl file
@@ -66,24 +66,27 @@ for sector in xl['streaming']['sectors']:
     sector_name=sector['path']
     print('\nProcessing sector ',sector_name)
     with open(os.path.join(wolvenkit_project,'source','raw',sector_name)+'.json', 'r') as jfile:
-        j = json.load(jfile) 
+        j = json.load(jfile)
     t=j['Data']['RootChunk']['nodeData']['Data']
     print('length of nodeData - ',len(t))
     expectedNodes[sector_name] =len(t)
-    # go through the node deletions, and find the refs to them
-    for i,delnode in enumerate(sector['nodeDeletions']):
-        oldindex=delnode['index']
-        instances = [id for id,x in enumerate(t) if x['NodeIndex'] == oldindex]
-        print('NodeDeletion ',i,'now index',instances)
-        for inst in instances:
-            if 'mesh' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
-                name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['mesh']['DepotPath']['$value'])
-            elif 'entityTemplate' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
-                name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['entityTemplate']['DepotPath']['$value'])
-            else:
-                name=delnode['name']
-            node={'nodeIndex':inst,'nodeType':delnode['type'],'name':name}
-            empty_collections.append(node)
+    if sector['nodeDeletions'] is not None:
+        # go through the node deletions, and find the refs to them
+        for i,delnode in enumerate(sector['nodeDeletions']):
+            oldindex=delnode['index']
+            instances = [id for id,x in enumerate(t) if x['NodeIndex'] == oldindex]
+            print('NodeDeletion ',i,'now index',instances)
+            for inst in instances:
+                if 'mesh' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
+                    name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['mesh']['DepotPath']['$value'])
+                elif 'entityTemplate' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
+                    name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['entityTemplate']['DepotPath']['$value'])
+                elif 'name' in delnode:
+                    name=delnode['name']
+                else:
+                    name='INVALID_NODE'
+                node={'nodeIndex':inst,'nodeType':delnode['type'],'name':name}
+                empty_collections.append(node)
     deletions[sector_name]=empty_collections
 
 to_archive_xl(output_file)
