@@ -20,73 +20,132 @@ output_file="F:\\CyberpunkFiles\\world_editing\\apartment_loft_cleaned_up\\sourc
 # For indenting your .xl file
 indent="  "
 
+import bpy
+import re
+import os
+
+wolvenkit_project = "apartment_loft_cleaned_up"
+mod_directory = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\"
+project_directory = "F:\\CyberpunkFiles\\world_editing\\"
+
+export_to_mod_dir = True
+consider_partial_deletions = True
+
+# Specify the filename where you want to save the output. Make sure to use an existing folder!
+output_filename = f"{project_directory}\\{wolvenkit_project}\\source\\resources\\{wolvenkit_project}.archive.xl"
+
+if export_to_mod_dir:
+    output_filename = f"{mod_directory}\\{wolvenkit_project}.archive.xl"
+
+# if an item matches all strings in one of the sub-arrays, delete it
+delete_partials = [
+    [ "soda_can" ],
+    [ "squat_clothes" ],
+    [ "takeout_cup" ],
+    [ "trash" ],
+]
+
+# if an item matches all strings in one of the sub-arrays, keep it. Supports regular expression.
+keep_partials = [ 
+    [ "^q\d\d" ],
+    # ["entropy_lamp.*"]
+]
+
+# For indenting your .xl file
+indent="  "
+
 # --------------------------- DO NOT EDIT BELOW THIS LINE -------------------------------------
 
 deletions = {}
 expectedNodes = {}
+
+# function to recursively count nested collections
+def countChildNodes(collection):
+    if 'expectedNodes' in collection:
+        numChildNodes = collection['expectedNodes']
+        return numChildNodes
+
+
+# Compile regular expressions for keep_partials
+compiled_partials = [[re.compile(p) for p in partials] for partials in keep_partials]
+
+# Function to find collections without children (these contain deletions)
+def find_empty_collections(collection):
+    empty_collections = []
+
+    is_deletion_candidate = "nodeDataIndex" in collection and "nodeType" in collection
+
+    # check if we want to keep this collection
+    for keep_check in compiled_partials:
+        if all(p.search(collection.name) for p in keep_check):
+            return empty_collections
+
+    if len(collection.children) == 0 and is_deletion_candidate:
+        if len(collection.objects) == 0:
+            empty_collections.append(collection)
+        if consider_partial_deletions and len(collection.children) > 0 and not collection.children[0]["Name"].startswith("submesh_00"):
+                empty_collections.append(collection)
+    elif is_deletion_candidate:
+        for deletion_check in delete_partials:
+            if all(partial in collection.name for partial in deletion_check):
+                empty_collections.append(collection)
+        
+    for child_collection in collection.children:
+        empty_collections.extend(find_empty_collections(child_collection))        
+
+    return empty_collections
+
+
 # Function to write to a text file
 def to_archive_xl(filename):
     with open(filename, "w") as file:
         file.write("streaming:\n")
         file.write(f"{indent}sectors:\n")
         for sectorPath in deletions:
-            sectorData = deletions[sectorPath]
-            if len(sectorData) == 0:
+            # skip empty sectors/collections
+            if deletions[sectorPath] is None or len(deletions[sectorPath]) == 0:
                 continue
-            file.write(f"{indent}{indent}- path: {sectorPath}\n")
+                        
+            sectorName =  os.path.splitext(os.path.basename(sectorPath))[0]
+            file.write(f"{indent}{indent}- path: base\\worlds\\03_night_city\\_compiled\\default\\{sectorName}\n")
             file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[sectorPath]}\n")
             file.write(f"{indent}{indent}{indent}nodeDeletions:\n")
-
-            firstNode = sectorData[0]
-            currentNodeIndex = firstNode['nodeIndex']
-            currentNodeComment = firstNode['name']
-            currentNodeType = firstNode['nodeType']
-                    
-            for empty_collection in sectorData:
-                if empty_collection['nodeIndex'] > currentNodeIndex:
-                    # new node! write the old one                    
+            sectorData = deletions[sectorPath]
+            
+            if "interior_-24_-16_1_1" in sectorName:
+                print(sectorData)
+            
+            currentNodeIndex = sectorData[0]["nodeDataIndex"]
+            currentNodeComment = ''
+            currentNodeType = sectorData[0]["nodeType"]
+            
+            # keep a counter so that we know when to always print node data - see quest_ca115e9713d725d7.streamingsector
+            numNodes = 1
+            
+            for empty_collection in sectorData:                
+                if empty_collection["nodeDataIndex"] > currentNodeIndex or numNodes == len(sectorData):
+                    # new node! write the old one
                     file.write(f"{indent}{indent}{indent}{indent}# {currentNodeComment}\n")
                     file.write(f"{indent}{indent}{indent}{indent}- index: {currentNodeIndex}\n")
                     file.write(f"{indent}{indent}{indent}{indent}{indent}type: {currentNodeType}\n")
+                    file.write(f"{indent}{indent}{indent}{indent}{indent}debugName: {currentNodeComment}\n")
                     
                     # set instance variables
-                    currentNodeIndex = empty_collection['nodeIndex']
-                    currentNodeComment = empty_collection['name']
+                    currentNodeIndex = empty_collection["nodeDataIndex"]
+                    currentNodeComment = empty_collection.name
                     currentNodeType = empty_collection['nodeType']
-                elif empty_collection['nodeIndex'] == currentNodeIndex:
-                    currentNodeComment = f"{currentNodeComment}, {empty_collection['name']}"
+                elif empty_collection["nodeDataIndex"] == currentNodeIndex:
+                    prefix = ", " if currentNodeComment != "" else ""
+                    currentNodeComment =  f"{currentNodeComment}{prefix}{empty_collection.name}"
+                # increment counter
+                numNodes += 1
 
+# Iterate over matching collections and find empty ones
+for sectorCollection in [c for c in bpy.data.collections if c.name.endswith("streamingsector")]:
+    file_path = sectorCollection["filepath"]    
+    expectedNodes[file_path] = countChildNodes(sectorCollection)
+    collections = find_empty_collections(sectorCollection)
+    if len(collections) > 0:
+        deletions[file_path] = collections
 
-with open(original_file, 'r') as xlfile:
-    xl = yaml.safe_load(xlfile)
-
-for sector in xl['streaming']['sectors']:
-    #load the sector json so I can find nodes
-    empty_collections = []
-    sector_name=sector['path']
-    print('\nProcessing sector ',sector_name)
-    with open(os.path.join(wolvenkit_project,'source','raw',sector_name)+'.json', 'r') as jfile:
-        j = json.load(jfile)
-    t=j['Data']['RootChunk']['nodeData']['Data']
-    print('length of nodeData - ',len(t))
-    expectedNodes[sector_name] =len(t)
-    if sector['nodeDeletions'] is not None:
-        # go through the node deletions, and find the refs to them
-        for i,delnode in enumerate(sector['nodeDeletions']):
-            oldindex=delnode['index']
-            instances = [id for id,x in enumerate(t) if x['NodeIndex'] == oldindex]
-            print('NodeDeletion ',i,'now index',instances)
-            for inst in instances:
-                if 'mesh' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
-                    name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['mesh']['DepotPath']['$value'])
-                elif 'entityTemplate' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
-                    name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['entityTemplate']['DepotPath']['$value'])
-                elif 'name' in delnode:
-                    name=delnode['name']
-                else:
-                    name='INVALID_NODE'
-                node={'nodeIndex':inst,'nodeType':delnode['type'],'name':name}
-                empty_collections.append(node)
-    deletions[sector_name]=empty_collections
-
-to_archive_xl(output_file)
+to_archive_xl(output_filename)
