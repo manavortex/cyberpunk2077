@@ -1,13 +1,13 @@
 import bpy
 import re
-import os
-import json
 
-wolvenkit_project = "apartment_corpo_cleaned_up"
+# Requires the blender addon changes from https://github.com/WolvenKit/Cyberpunk-Blender-add-on/pull/99
+
+wolvenkit_project = "_world_editing_debug_project"
 mod_directory = "C:\\Games\\Cyberpunk 2077\\archive\\pc\\mod\\"
 project_directory = "F:\\CyberpunkFiles\\world_editing\\"
 
-export_to_mod_dir = True
+export_to_mod_dir = False
 consider_partial_deletions = True
 
 # Specify the filename where you want to save the output. Make sure to use an existing folder!
@@ -30,7 +30,6 @@ keep_partials = [
     # ["entropy_lamp.*"]
 ]
 
-
 # For indenting your .xl file
 indent="  "
 
@@ -52,7 +51,8 @@ compiled_partials = [[re.compile(p) for p in partials] for partials in keep_part
 # Function to find collections without children (these contain deletions)
 def find_empty_collections(collection):
     empty_collections = []
-    is_deletion_candidate = 'nodeIndex' in collection and 'nodeType' in collection
+
+    is_deletion_candidate = "nodeDataIndex" in collection and "nodeType" in collection
 
     # check if we want to keep this collection
     for keep_check in compiled_partials:
@@ -63,7 +63,7 @@ def find_empty_collections(collection):
         if len(collection.objects) == 0:
             empty_collections.append(collection)
         if consider_partial_deletions and len(collection.children) > 0 and not collection.children[0]["Name"].startswith("submesh_00"):
-            empty_collections.append(collection)
+                empty_collections.append(collection)
     elif is_deletion_candidate:
         for deletion_check in delete_partials:
             if all(partial in collection.name for partial in deletion_check):
@@ -80,67 +80,43 @@ def to_archive_xl(filename):
     with open(filename, "w") as file:
         file.write("streaming:\n")
         file.write(f"{indent}sectors:\n")
-        for sectorPath in deletions:
+        for sectorName in deletions:
+            # skip empty sectors/collections
+            if deletions[sectorName] is None or len(deletions[sectorName]) == 0:
+                continue
+            
             deletedNodes = []
-            file.write(f"{indent}{indent}- path: {sectorPath}\n")
-            file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[sectorPath]}\n")
+            file.write(f"{indent}{indent}- path: base\\worlds\\03_night_city\\_compiled\\default\\{sectorName}\n")
+            file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[sectorName]}\n")
             file.write(f"{indent}{indent}{indent}nodeDeletions:\n")
-            sectorData = deletions[sectorPath]
+            sectorData = deletions[sectorName]
 
-            currentNodeIndex = -1
+            currentNodeIndex = sectorData[0]["nodeDataIndex"]
             currentNodeComment = ''
-            currentNodeType = ''
+            currentNodeType = sectorData[0]["nodeType"]
             for empty_collection in sectorData:
-                name = empty_collection.get('name', 'noName')
-                if empty_collection['nodeIndex'] > currentNodeIndex:      
-                    if currentNodeIndex >= 0:                  
-                        # new node! write the old one                    
-                        file.write(f"{indent}{indent}{indent}{indent}# {currentNodeComment}\n")
-                        file.write(f"{indent}{indent}{indent}{indent}- index: {currentNodeIndex}\n")
-                        file.write(f"{indent}{indent}{indent}{indent}{indent}type: {currentNodeType}\n")                    
+                if empty_collection["nodeDataIndex"] > currentNodeIndex:
+                    # new node! write the old one
+                    file.write(f"{indent}{indent}{indent}{indent}# {currentNodeComment}\n")
+                    file.write(f"{indent}{indent}{indent}{indent}- index: {currentNodeIndex}\n")
+                    file.write(f"{indent}{indent}{indent}{indent}{indent}type: {currentNodeType}\n")
+                    file.write(f"{indent}{indent}{indent}{indent}{indent}debugName: {currentNodeComment}\n")
+                    
                     # set instance variables
-                    currentNodeIndex = empty_collection['nodeIndex']
-                    currentNodeComment = name
+                    currentNodeIndex = empty_collection["nodeDataIndex"]
+                    currentNodeComment = empty_collection.name
                     currentNodeType = empty_collection['nodeType']
+                elif empty_collection["nodeDataIndex"] == currentNodeIndex:
+                    prefix = ", " if currentNodeComment != "" else ""
+                    currentNodeComment =  f"{currentNodeComment}{prefix}{empty_collection.name}"
 
 
 # Iterate over matching collections and find empty ones
 for sectorCollection in [c for c in bpy.data.collections if c.name.endswith("streamingsector")]:
-    prefix, file_path = sectorCollection["filepath"].split('raw\\')
-    file_path = file_path.replace(".json", "")
+    file_path = sectorCollection["filepath"]    
     expectedNodes[file_path] = countChildNodes(sectorCollection)
     collections = find_empty_collections(sectorCollection)
     if len(collections) > 0:
         deletions[file_path] = collections
-        
-
-projpath=f"{project_directory}{wolvenkit_project}"
-for sector_name in deletions:
-    #load the sector json so I can find nodes
-    empty_collections = []
-    print('\nProcessing sector ',sector_name)
-    with open(os.path.join(projpath,'source','raw',sector_name)+'.json', 'r') as jfile:
-        j = json.load(jfile) 
-    t=j['Data']['RootChunk']['nodeData']['Data']
-    print('length of nodeData - ',len(t))
-    expectedNodes[sector_name] =len(t)
-    # go through the node deletions, and find the refs to them
-    for delnode in deletions[sector_name]:
-        oldindex=delnode['nodeIndex']
-        instances = [id for id,x in enumerate(t) if x['NodeIndex'] == oldindex]
-        for inst in instances:
-            if 'mesh' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
-                name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['mesh']['DepotPath']['$value'])
-            elif 'entityTemplate' in j['Data']['RootChunk']['nodes'][oldindex]['Data']:
-                name=os.path.basename(j['Data']['RootChunk']['nodes'][oldindex]['Data']['entityTemplate']['DepotPath']['$value'])
-            else:
-                name=delnode['name']
-            node={'nodeIndex':inst,'nodeType':delnode['nodeType'],'name': name}
-            empty_collections.append(node)
-            
-    deletions[sector_name]=empty_collections
-
-to_archive_xl(output_filename)
-
 
 to_archive_xl(output_filename)
