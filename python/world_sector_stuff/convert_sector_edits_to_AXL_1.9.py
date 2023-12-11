@@ -90,8 +90,9 @@ def to_archive_xl(filename):
                 continue
 
             sectorName = os.path.splitext(os.path.basename(sectorPath))[0]
+            dlcIndicator = "\\ep1" if "ep1" in sectorPath else ""
 
-            file.write(f"{indent}{indent}- path: base\\worlds\\03_night_city\\_compiled\\default\\{sectorName}\n")
+            file.write(f"{indent}{indent}- path: base\\worlds\\03_night_city\\_compiled\\default{dlcIndicator}\\{sectorName}\n")
             file.write(f"{indent}{indent}{indent}expectedNodes: {expectedNodes[sectorPath]}\n")
             file.write(f"{indent}{indent}{indent}nodeDeletions:\n")
 
