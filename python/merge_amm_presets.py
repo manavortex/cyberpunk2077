@@ -1,6 +1,9 @@
 import json
 
-# path to the folder with your prop files
+# path to the folder with your prop files. Make sure to double your slashes!! 
+# wrong: C:\Games 
+# right: C:\\Games
+
 # file_path = "C:\\Games\\Cyberpunk 2077\\bin\\x64\\plugins\\cyber_engine_tweaks\\mods\\AppearanceMenuMod\\User\\Decor"
 file_path = "E:\\Downloads\\temp"
 
