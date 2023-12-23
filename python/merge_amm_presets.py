@@ -49,7 +49,7 @@ def merge_filecontent(absolute_filepath):
             if data["lights"] is not None:
                 for light in data["lights"]:
                     if (light["uid"] is not None):
-                        light["uid"] = get_first_free_entry(light["uid"], uid_dict)
+                        light["uid"] = get_first_free_entry(light["uid"])
                     fileData["lights"].append(light)
 
     except FileNotFoundError:
