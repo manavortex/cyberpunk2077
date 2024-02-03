@@ -3,8 +3,8 @@ import copy
 import re
 from itertools import product
 
-path =     "F:\\CyberpunkFiles\\commissions\\ghost_goomba\\yokai_international\\source\\raw\\manavortex\\clothing\\head\\seraph_mask\\seraph_mask_i18n.json - Copy.json"
-out_path = "F:\\CyberpunkFiles\\commissions\\ghost_goomba\\yokai_international\\source\\raw\\manavortex\\clothing\\head\\seraph_mask\\seraph_mask_i18n.json.json"
+path =     "F:\\CyberpunkFiles\\head\\yokai_international\\source\\raw\\manavortex\\clothing\\head\\seraph_mask\\seraph_mask_i18n.json - Copy.json"
+out_path = "F:\\CyberpunkFiles\\head\\yokai_international\\source\\raw\\manavortex\\clothing\\head\\seraph_mask\\seraph_mask_i18n.json.json"
 
 # colors = [
 #         "red", "green", "white", "black", "silver", "gold", "blue", "lightblue", "pink", "rose", "violet", "lightgreen", "yellow", "orange", "scarlet"
