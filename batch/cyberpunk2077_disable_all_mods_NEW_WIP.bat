@@ -121,14 +121,6 @@ for %%P in (!delete_paths!) do (
   )
 )
 
-REM now that we're done deleting, make sure that r6\cache\modded exist to prevent file access errors
-if not exist "!CYBERPUNKDIR!\r6\cache" (
-  mkdir "!CYBERPUNKDIR!\r6\cache"
-)
-if not exist "!CYBERPUNKDIR!\r6\cache\modded" (
-  mkdir "!CYBERPUNKDIR!\r6\cache\modded"
-)
-
 REM =================================================================
 REM show user feedback
 REM =================================================================
@@ -200,12 +192,13 @@ goto :eof
 		REM delete directory and create an empty folder
 		rd /s /q "!source!"
 		mkdir "!source!"
-	) else (	
+	) else (
 		REM Create the destination directory if needed
 		if not exist "!dest!\.." (
-			mkdir "!dest!"
+			mkdir "!dest!\.."
 		)
-		powershell.exe -Command "Copy-Item -Path '!source!' -Destination '!dest!' -Force"		
+		powershell.exe -Command "Copy-Item -Path '!source!' -Destination '!dest!' -Force"
+		
 		if "!DEBUG_MODE!"=="1" goto :log_file_operation	
 		
 		del /f /q "!source!"
