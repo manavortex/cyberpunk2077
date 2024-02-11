@@ -6,7 +6,7 @@ REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-207
 REM Up-to-date with 2.1.1
 REM -------------------------------------------------------------------------------------------------------------------
 REM Debug mode?
-set DEBUG_MODE=1
+set DEBUG_MODE=0
 REM ===================================================================================================================
 
 REM for indenting user output
