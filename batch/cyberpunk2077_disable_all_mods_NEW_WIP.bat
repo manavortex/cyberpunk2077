@@ -1,17 +1,17 @@
 @ECHO OFF
 setlocal enabledelayedexpansion
 
+REM ===================================================================================================================
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
-REM Up-to-date with 1.6.3_hotfix after the DLSS patch
+REM Up-to-date with 2.1.1
+REM -------------------------------------------------------------------------------------------------------------------
+REM Debug mode?
+set DEBUG_MODE=0
+REM ===================================================================================================================
 
 REM for indenting user output
 set "tab=    "
 set separator=--------------------------------------------------------------------------------------------------------
-
-REM ==================================================================
-REM Make sure that we're in the cyberpunk directory
-REM yell at user if we aren't
-REM ==================================================================
 
 if "%~1" == "" (
   pushd "%~dp0"
@@ -24,8 +24,12 @@ if "%~1" == "" (
   set "CYBERPUNKDIR=!param!"
 )
 
-pushd "!CYBERPUNKDIR!"
+REM ==================================================================
+REM Make sure that we're in the cyberpunk directory
+REM yell at user if we aren't
+REM ==================================================================
 
+pushd "!CYBERPUNKDIR!"
 
 REM make sure that we're inside the cyberpunk dir
 if not exist ".\bin\x64\Cyberpunk2077.exe" (
@@ -38,7 +42,7 @@ if not exist ".\bin\x64\Cyberpunk2077.exe" (
   echo !tab!Aborting...
   echo !separator!
   pause
-  goto :eof
+  goto :end
 )
 
 
@@ -107,14 +111,24 @@ for %%P in (%rename_paths%) do (
         REM Check if the source is a directory
         if exist "!absolute_source!\." (
             REM Move directory and create the destination directory structure if needed
-			robocopy "!absolute_source!" "!absolute_dest!" /E /MOVE /CREATE /njh /njs /ndl /nc /ns > nul		
+			if "%DEBUG_MODE%"=="1" (
+				robocopy "!absolute_source!" "!absolute_dest!" /E /CREATE /njh /njs /ndl /nc /ns > nul
+			) else (
+				robocopy "!absolute_source!" "!absolute_dest!" /E /MOVE /CREATE /njh /njs /ndl /nc /ns > nul
+			)
 			if not exist "!absolute_source!" (
 				mkdir "!absolute_source!"
 			)
         ) else (
             REM Move file and create the destination directory if needed
             mkdir "!BACKUP_DIRECTORY!\%%~P\.."
-            move "!absolute_source!" "!absolute_dest!"
+			
+            REM Move directory and create the destination directory structure if needed
+			if "%DEBUG_MODE%"=="1" (
+				copy "!absolute_source!" "!absolute_dest!"
+			) else (
+				move "!absolute_source!" "!absolute_dest!"		
+			)
         )
     )
 	REM append it to array so we can print it later
@@ -161,7 +175,7 @@ if (!numRenamedFiles!) gtr (0) (
 
 
 if (!numDeletedFiles!) gtr (0) (
-  echo The following files were deleted: >> "!LOGFILE!"
+  echo The following outdated files were deleted: >> "!LOGFILE!"
   echo !separator! >> "!LOGFILE!"
   for /L %%i in (1,1,%numDeletedFiles%) do echo !tab!!deleted_paths_list[%%i]! >> "!LOGFILE!"
   echo. >> "!LOGFILE!"
@@ -189,8 +203,11 @@ pause
 
 explorer !BACKUP_DIRECTORY!
 
-popd
-goto :eof
+goto :end
+
+:end
+	popd
+	goto :eof
 
   
 :delete_file_or_folder_without_prompt
@@ -209,11 +226,12 @@ goto :eof
 	echo You have more than 5 old mod remover backups under !CYBERPUNKDIR!\_MOD_REMOVER_BACKUPS.	
 		echo You really should delete them before your disk runs full.
 		set /p user_input="Delete files now? [Y] "
+		
 		if /i not "%user_input%"=="Y" goto :eof 
 		
 		echo.
 		echo !separator!
-		echo Script will delete your old backups now. Last chance to copy them!
+		echo Script will delete your old backups now. Last chance to back them up!
 		echo.
 		pause
 		for /d %%i in ("!CYBERPUNKDIR!\_MOD_REMOVER_BACKUPS\*") do (
