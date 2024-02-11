@@ -6,7 +6,7 @@ REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-207
 REM Up-to-date with 2.1.1
 REM -------------------------------------------------------------------------------------------------------------------
 REM Debug mode?
-set DEBUG_MODE=0
+set DEBUG_MODE=1
 REM ===================================================================================================================
 
 REM for indenting user output
@@ -86,7 +86,7 @@ REM set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks r
 REM set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base
 REM engine\tools r6\cache r6\config r6\inputs V2077"
 
-set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base engine\tools r6\cache r6\config r6\inputs"
+set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base engine\tools r6\cache r6\config r6\input"
 
 REM some folders are outdated and ancient and you should NOT have them.
 set "delete_paths=V2077"
@@ -109,15 +109,16 @@ set numDeletedFiles=0
 set "deleted_paths_list="
 
 for %%P in (!delete_paths!) do (  
-  set "absolute_path=!CYBERPUNKDIR!\%%~P"
+  set "relative_path=%%~P"
+  set "absolute_path=!CYBERPUNKDIR!\!relative_path!"
   if exist "!absolute_path!" (
 	set /A numDeletedFiles+=1
-	set deleted_paths_list[!numDeletedFiles!]=%%~P
-	if exist !absolute_path!\* (
-		rd /s /q !absolute_path!
-	  ) else (      
-	   del /f /q !absolute_path!
-	  )
+	set deleted_paths_list[!numDeletedFiles!]=!relative_path!	
+	if exist "!absolute_path!\*" (
+		rd /s /q "!absolute_path!"
+	) else (      
+		del /f /q "!absolute_path!"
+	)
   )
 )
 
@@ -137,11 +138,11 @@ if (!numRenamedFiles!) gtr (0) (
   echo !tab!Your installation has been reset. >> "!LOGFILE!"
 )
 
-
 if (!numDeletedFiles!) gtr (0) (
+  echo. >> "!LOGFILE!"
   echo The following outdated files were deleted: >> "!LOGFILE!"
   echo !separator! >> "!LOGFILE!"
-  for /L %%i in (1,1,%numDeletedFiles%) do echo !tab!!deleted_paths_list[%%i]! >> "!LOGFILE!"
+  for /L %%i in (1,1,%numDeletedFiles%) do echo !tab!!deleted_paths_list[%%i]! >> "!LOGFILE!"  
   echo. >> "!LOGFILE!"
 )
 
@@ -217,7 +218,7 @@ goto :eof
 
 	echo You have more than 5 old mod remover backups under !CYBERPUNKDIR!\_MOD_REMOVER_BACKUPS.	
 	echo You really should delete them before your disk runs full.
-	set /p user_input="Delete files now? [Y] "
+	set /p user_input="Should ModRemover auto-delete the files for you? (Only if you type [Y]) "
 	
 	if /i not "%user_input%"=="Y" goto :eof 
 	
