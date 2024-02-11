@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM ===================================================================================================================
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
-REM Up-to-date with 2.1.1, but this won't go bad
+REM Up-to-date with 2.1.1
 REM -------------------------------------------------------------------------------------------------------------------
 REM Debug mode?
 set DEBUG_MODE=0
@@ -155,12 +155,16 @@ if (!numDeletedFiles!) gtr (0) (
 
 echo !separator! >> "!LOGFILE!
 echo. >> "!LOGFILE!"
-echo .
-
-
-echo You can find the full list in !LOGFILE!
+echo.
+echo.
+echo Your installation has been reset:
+echo All modded and potentially-modded files were moved to
+echo !tab!!BACKUP_DIRECTORY!
+echo.
+echo You can find the full list of files in !LOGFILE!
+echo.
 echo For further help, check https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-users/user-guide-troubleshooting#a-fresh-install-starting-from-scratch
-echo .
+echo.
 echo " !separator! "
 echo "                 _  __                                                                                    "
 echo " /\   /\___ _ __(_)/ _|_   _   _   _  ___  _   _ _ __    __ _  __ _ _ __ ___   ___   _ __   _____      __ "
