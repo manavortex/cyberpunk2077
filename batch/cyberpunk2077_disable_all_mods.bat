@@ -13,11 +13,6 @@ REM for indenting user output
 set "tab=    "
 set separator=--------------------------------------------------------------------------------------------------------
 
-REM Add a prompt to ask the user if they are sure they want to uninstall all mods
-echo Are you sure you want to uninstall ALL your Cyberpunk 2077 mods? (Y/N)
-set /p user_input=
-if /i not "%user_input%"=="Y" goto :eof
-
 if "%~1" == "" (
   pushd "%~dp0"
   set "CYBERPUNKDIR=!CD!"
@@ -39,8 +34,10 @@ if not exist "!CYBERPUNKDIR!\bin\x64\Cyberpunk2077.exe" (
   echo.
   echo !separator!
   echo !tab!File not found !CYBERPUNKDIR!\bin\x64\Cyberpunk2077.exe
-  echo !tab!Either start this script in your Cyberpunk 2077 folder,
-  echo !tab!or drag and drop it from Windows Explorer on this file.
+  echo !tab!Please start this script from your Cyberpunk 2077 folder.
+  echo !tab!If you don't know what that is, please check the following link:
+  echo.
+  echo https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-users/users-modding-cyberpunk-2077/the-cyberpunk-2077-game-directory
   echo.
   echo !tab!Aborting...
   echo !separator!
@@ -48,6 +45,17 @@ if not exist "!CYBERPUNKDIR!\bin\x64\Cyberpunk2077.exe" (
   goto :eof
 )
 
+
+REM Add a prompt to ask the user if they are sure they want to uninstall all mods
+echo.
+echo Are you sure you want to uninstall ALL your Cyberpunk 2077 mods to a backup dir? Type "y" to continue.  
+set /p user_input=
+if /i not "%user_input%"=="Y" (
+  echo !separator!
+  echo !tab!You picked "%user_input%". Mod Remover will abort.
+  echo.   
+  goto :eof
+)
 
 REM Create directory for backups
 if not exist "!CYBERPUNKDIR!\_MOD_REMOVER_BACKUPS" (
@@ -230,6 +238,7 @@ goto :eof
 	echo.
 	echo !separator!
 	echo Script will delete your old backups now. Last chance to back them up!
+	echo Press a key when you're ready...
 	echo.
 	pause
 	for /d %%i in ("!CYBERPUNKDIR!\_MOD_REMOVER_BACKUPS\*") do (
