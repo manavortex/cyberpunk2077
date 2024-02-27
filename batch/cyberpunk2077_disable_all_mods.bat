@@ -13,6 +13,11 @@ REM for indenting user output
 set "tab=    "
 set separator=--------------------------------------------------------------------------------------------------------
 
+REM Add a prompt to ask the user if they are sure they want to uninstall all mods
+echo Are you sure you want to uninstall ALL your Cyberpunk 2077 mods? (Y/N)
+set /p user_input=
+if /i not "%user_input%"=="Y" goto :eof
+
 if "%~1" == "" (
   pushd "%~dp0"
   set "CYBERPUNKDIR=!CD!"
