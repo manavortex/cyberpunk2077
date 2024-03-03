@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM ===================================================================================================================
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
-REM Up-to-date with 2.1.1
+REM Up-to-date with 2.12
 REM -------------------------------------------------------------------------------------------------------------------
 REM Debug mode?
 set DEBUG_MODE=0
@@ -48,14 +48,19 @@ if not exist "!CYBERPUNKDIR!\bin\x64\Cyberpunk2077.exe" (
 
 REM Add a prompt to ask the user if they are sure they want to uninstall all mods
 echo.
-echo Are you sure you want to uninstall ALL your Cyberpunk 2077 mods to a backup dir? Type "y" to continue.  
+echo Are you sure you want to uninstall ALL your Cyberpunk 2077 mods to a backup dir? 
+echo Press "Enter" to continue, press any other key to abort.  
 set /p user_input=
-if /i not "%user_input%"=="Y" (
+if /i not "%user_input%"=="" (
   echo !separator!
-  echo !tab!You picked "%user_input%". Mod Remover will abort.
+  echo !tab!You pressed "%user_input%". Mod Remover will abort.
+  echo !tab!To reset your Cyberpunk install, run the script again and press "Enter" at the question.
   echo.   
+  pause
   goto :eof
 )
+
+echo Checking existing backups, please wait...
 
 REM Create directory for backups
 if not exist "!CYBERPUNKDIR!\_MOD_REMOVER_BACKUPS" (
@@ -90,6 +95,8 @@ if not exist "!LOGFILE!" (
 ) else (
     break > "!LOGFILE!"
 )
+
+echo Resetting your install, please wait...
 
 REM =================================================================
 REM the files that we want to remove/rename
@@ -167,9 +174,11 @@ echo Your installation has been reset:
 echo All modded and potentially-modded files were moved to
 echo !tab!!BACKUP_DIRECTORY!
 echo.
-echo You can find the full list of files in !LOGFILE!
+echo You can find the full list of files in the log file:
+echo !LOGFILE!
 echo.
-echo For further help, check https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-users/user-guide-troubleshooting#a-fresh-install-starting-from-scratch
+echo For further help, check our wiki:
+echo https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-users/user-guide-troubleshooting#a-fresh-install-starting-from-scratch
 echo.
 echo " !separator! "
 echo "                 _  __                                                                                    "
