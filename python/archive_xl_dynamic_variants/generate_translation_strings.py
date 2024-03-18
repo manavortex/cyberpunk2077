@@ -5,6 +5,9 @@ import os
 from itertools import product
 import sys
 
+# If you don't know how to run this script, check the wiki: https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-creators/modding-guides/everything-else/running-python-scripts
+# To learn more about ArchiveXL dynamic item additions, also check the wiki: https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-creators/modding-guides/items-equipment/adding-new-items/archivexl-dynamic-variants
+
 
 ########################################################################################################################################
 # Step 0
