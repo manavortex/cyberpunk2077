@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM ===================================================================================================================
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
-REM Up-to-date with 2.12
+REM Up-to-date with 2.12a, don't expect it to break though
 REM -------------------------------------------------------------------------------------------------------------------
 REM Debug mode?
 set DEBUG_MODE=0
@@ -106,7 +106,7 @@ REM set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks r
 REM set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base
 REM engine\tools r6\cache r6\config r6\inputs V2077"
 
-set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base engine\tools r6\cache r6\config r6\input"
+set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc bin\x64\version.dll bin\x64\LICENSE bin\x64\global.ini bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base engine\tools r6\cache r6\config r6\input"
 
 REM some folders are outdated and ancient and you should NOT have them.
 set "delete_paths=V2077"
