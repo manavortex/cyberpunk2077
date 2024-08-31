@@ -16,6 +16,14 @@ def create_and_bind_surface_deform(target_obj):
 
             print(f"Created and bound 'Surface Deform' modifier for '{obj.name}' to '{target_obj.name}'.")
 
+    
+def switch_to_layout_view():
+    for screen in bpy.data.screens:
+        if screen.name == "Layout":
+            bpy.context.window.screen = screen
+            break
+
+
 def main():
     """Main function to create and bind Surface Deform modifier."""
     # Get the currently selected mesh
@@ -28,6 +36,8 @@ def main():
     target_obj = selected_meshes[0]
 
     create_and_bind_surface_deform(target_obj)
+    switch_to_layout_view()
+    
 
 if __name__ == "__main__":
     main()
