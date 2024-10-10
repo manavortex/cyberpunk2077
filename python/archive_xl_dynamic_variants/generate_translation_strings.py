@@ -13,8 +13,9 @@ import sys
 # Step 0
 # set the values below
 ########################################################################################################################################
-# Put the absolute path to your file. All \ need to be converted to \\, or it won't work!
-path =     "F:\\CyberpunkFiles\\blah\\my_item_i18n.json.json"
+# In Wolvenkit, right mouse click on the translation file and select 'convert to JSON'
+# Put the absolute path to your converted file. All \ need to be converted to \\, or it won't work!
+path =     "F:\\CyberpunkFiles\\mod_name\\archive\\raw\\blah\\my_item_i18n.json.json"
 
 # This will re-create your file! Set this to False if you want to append entries that don't exist yet
 overwrite_entries = True
@@ -25,10 +26,11 @@ cleanup_existing_entries = False
 ########################################################################################################################################
 # Step 1
 # Define lists of colours. You can have as many as you want.
+# You can define more than two lists for the variants
 ########################################################################################################################################
 
 colors = [
-            "black", "white", "grey", "brown", "red", "green", "blue", "gold", "silver", "pink", "darkred",
+            "black", "white", "grey", "brown", "red", "green", "blue", "gold", "silver", "pink", "darkred", 
             "black_glossy", "white_glossy", "grey_glossy", "brown_glossy", "red_glossy", "green_glossy", "blue_glossy", "gold_glossy", "silver_glossy", "pink_glossy", "darkred_glossy",
             "black_matte", "white_matte", "grey_matte", "brown_matte", "red_matte", "green_matte", "blue_matte", "gold_matte", "silver_matte", "pink_matte", "darkred_matte",
              "transparent_red", "transparent_white", "transparent_dark"
@@ -41,6 +43,7 @@ neon = [
 # Step 2
 # Define your replacements to be used in entryTemplates below. For example, 
 # COLOR will use "colors" from step 1, NEON will use "neon" from step 1, etc.
+# Make sure to add same variants as in Step 1
 ########################################################################################################################################
 variants = {
     "COLOR": colors,
@@ -50,7 +53,7 @@ variants = {
 
 ########################################################################################################################################
 # Step 3
-# Define your entry templates. You only need to set the values here, leave the keys alone.
+# Define your entry templates. You only need to set the values here (right side of the colon), leave the keys alone.
 # You can define as many templates as you need.
 ########################################################################################################################################
 
@@ -65,7 +68,7 @@ entryTemplates = [
     {
         "$type": "localizationPersistenceOnScreenEntry",
         "femaleVariant": "Thigh-high boots - COLOR, NEON neon",
-        "maleVariant":   "",
+        "maleVariant": "",
         "primaryKey": "0",
         "secondaryKey": "manavortex_demo_boots_i18n_COLOR_NEON"
     },
@@ -193,15 +196,15 @@ def cleanupHumanReadableText(entry):
         entry["femaleVariant"]  = entry["femaleVariant"].replace(key, value)
         entry["maleVariant"]    = entry["maleVariant"].replace(key, value)
 
-    for key in errorProofDict(uppercase_letters).items():
+    for key, value in errorProofDict(uppercase_letters).items():
         regex = re.compile(f"{key}([a-z])")
-        entry["femaleVariant"] = regex.sub(lambda x: f" {x.group(1).upper()}", entry["femaleVariant"])
-        entry["maleVariant"] = regex.sub(lambda x: f" {x.group(1).upper()}", entry["maleVariant"])
+        entry["femaleVariant"] = regex.sub(lambda x: f"{value}{x.group(1).upper()}", entry["femaleVariant"])
+        entry["maleVariant"] = regex.sub(lambda x: f"{value}{x.group(1).upper()}", entry["maleVariant"])
         
-    for key in errorProofDict(lowercase_letters).items():
+    for key, value in errorProofDict(lowercase_letters).items():
         regex = re.compile(f"{key}([A-Z])")
-        entry["femaleVariant"] = regex.sub(lambda x: f" {x.group(1).lower()}", entry["femaleVariant"])
-        entry["maleVariant"] = regex.sub(lambda x: f" {x.group(1).lower()}", entry["maleVariant"])
+        entry["femaleVariant"] = regex.sub(lambda x: f"{value}{x.group(1).lower()}", entry["femaleVariant"])
+        entry["maleVariant"] = regex.sub(lambda x: f"{value}{x.group(1).lower()}", entry["maleVariant"])
         
     for key, value in errorProofDict(regexReplacementsRound2).items():
         entry["femaleVariant"] = re.sub(key, value, entry["femaleVariant"])
@@ -243,11 +246,12 @@ with open(path, 'r', encoding = "utf-8") as f:
     if overwrite_entries:
         entries.clear()
 
-    # do not re-add entries we already have.
-    alreadyCreatedEntries = set(k for k in entries)
+    # identify existing entries to avoid adding duplicates
+    alreadyCreatedEntries = {entry['secondaryKey'] for entry in entries}
 
     original_entries = len(alreadyCreatedEntries)
 
+    # create new entries based on template
     for entryTemplate in entryTemplates:
         for entryPattern in generate_entries():
             # input("Press Enter to continue...")
@@ -265,21 +269,20 @@ with open(path, 'r', encoding = "utf-8") as f:
 
             entryName = newEntry["secondaryKey"] 
             if newEntry["secondaryKey"] in alreadyCreatedEntries:
-                sys.stdout.write(f"skipping {entryName}\n")
+                sys.stdout.write(f"Skipping duplicate entry {entryName}\n")
                 continue
 
             alreadyCreatedEntries.add(newEntry["secondaryKey"])
 
-            entries.append(newEntry)   
-        
-        # If we want to re-process, we'll do them all at once
-        if not cleanup_existing_entries:
-            for entry in entries:
-                cleanupHumanReadableText(entry)    
-    
+            entries.append(newEntry)  
+
+    # If we want to re-process, we'll do them all at once
     if cleanup_existing_entries:
-        # we do them all at once
         for entry in entries:
+            cleanupHumanReadableText(entry)
+    else:
+        for entry in entries[original_entries:]:
+            entryName = entry["secondaryKey"]
             cleanupHumanReadableText(entry)
 
     with open(out_path, 'w', encoding = "utf-8") as outfile:
@@ -288,6 +291,9 @@ with open(path, 'r', encoding = "utf-8") as f:
 os.remove(path)
 os.rename(out_path, path)
 
-sys.stdout.write(f"Written {len(entries) - original_entries} new entries to {path}\n")
+sys.stdout.write(f"\nWrote {len(entries) - original_entries} new entries to {path}\n")
+if not overwrite_entries:
+    sys.stdout.write(f"Kept {original_entries} entry(ies)\n")
+
 
 exit(0)
