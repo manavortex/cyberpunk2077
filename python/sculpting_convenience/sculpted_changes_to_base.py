@@ -1,6 +1,7 @@
 import bpy
 
 # you have sculpted a mesh and now want to re-shape the original with all the shapekeys? Don't worry, here you go!
+# This _requires_ the vertices to be identical! You can sculpt all you like, but you can't change the vertex count or -order!
 
 original_mesh_name = 'OriginalMesh'
 resculpted_mesh_name = 'ResculptMesh'
