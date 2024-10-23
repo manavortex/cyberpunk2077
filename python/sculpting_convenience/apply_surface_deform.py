@@ -67,11 +67,9 @@ def apply_surface_deform_to_shapekeys(mesh, modifier_name="Surface Deform"):
                 shapekey.data[i].co += deformed_verts[i] - vert.co
             
             print(f"Applied Surface Deform offsets to shapekey '{shapekey.name}' for mesh '{mesh.name}'")            
-            mesh.modifiers.remove(surf_def_mod)
-            bpy.data.objects.remove(mesh_copy)
+        bpy.data.objects.remove(mesh_copy)
     else:
         # Delete the Surface Deform modifier
-        mesh.modifiers.remove(surf_def_mod)
         replace_mesh_with_copy(mesh, mesh_copy)
         
     
