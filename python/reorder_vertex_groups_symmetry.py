@@ -1,43 +1,48 @@
 import bpy
 
-# will put left and right vertex groups next to each other for easier weight painting
-
 def reorder_vertex_groups(obj):
-    """Reorders vertex groups so that each 'Right' group is directly below the corresponding 'Left' group."""
+    """Reorders vertex groups in 'Left-Right' pairs and maintains vertex weights."""
+    
     vgroups = obj.vertex_groups
-    left_to_right = {}
-    ordered_groups = []
+    group_weights = {}
 
-    # Map each "Left" group to its corresponding "Right" group
-    for vg in vgroups:
-        if vg.name.startswith("Left"):
-            corresponding_right = vg.name.replace("Left", "Right", 1)
-            if corresponding_right in vgroups:
-                left_to_right[vg.index] = vgroups[corresponding_right].index
-        if vg.name.startswith("l_"):
-            corresponding_right = vg.name.replace("l_", "r_", 1)
-            if corresponding_right in vgroups:
-                left_to_right[vg.index] = vgroups[corresponding_right].index
+    # Store weights by group name
+    for vgroup in vgroups:
+        group_weights[vgroup.name] = {v.index: g.weight for v in obj.data.vertices for g in v.groups if g.group == vgroup.index}
 
-    # Add any remaining groups that do not start with "Left"
-    for vg in vgroups:
-        if vg.name not in ordered_groups:
-            ordered_groups.append(vg.name)
+    # Create ordered list of group names with Left-Right pairs
+    ordered_group_names = []
+    for name in sorted(group_weights.keys()):
+        if name.startswith("Left"):
+            ordered_group_names.append(name)
+            corresponding_right = name.replace("Left", "Right", 1)
+            if corresponding_right in group_weights:
+                ordered_group_names.append(corresponding_right)
+        if name.startswith("l_"):
+            ordered_group_names.append(name)
+            corresponding_right = name.replace("l_", "r_", 1)
+            if corresponding_right in group_weights:
+                ordered_group_names.append(corresponding_right)
 
-    # Re-create groups in the desired order
-    current_weights = {v.index: {vg.group: vg.weight for vg in v.groups} for v in obj.data.vertices}
-    obj.vertex_groups.clear()  # Remove all existing groups
+    # Add any remaining unpaired groups
+    for name in group_weights.keys():
+        if name not in ordered_group_names:
+            ordered_group_names.append(name)
 
-    # Re-add vertex groups in the desired order
-    for group_name in ordered_groups:
-        new_group = obj.vertex_groups.new(name=group_name)
-        for v_idx, weights in current_weights.items():
-            if group_name in weights:
-                new_group.add([v_idx], weights[group_name], 'REPLACE')
+    # Clear existing vertex groups
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for vgroup in list(vgroups):
+        vgroups.remove(vgroup)
 
-    print("Vertex groups reordered.")
+    # Recreate vertex groups in the new order with stored weights
+    for name in ordered_group_names:
+        new_group = vgroups.new(name=name)
+        for v_idx, weight in group_weights[name].items():
+            new_group.add([v_idx], weight, 'REPLACE')
 
-# Ensure only one mesh is selected
+    print("Vertex groups reordered successfully.")
+
+# Run on the active object
 obj = bpy.context.active_object
 if obj and obj.type == 'MESH':
     reorder_vertex_groups(obj)
