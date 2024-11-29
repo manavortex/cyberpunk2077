@@ -1,36 +1,89 @@
 import bpy
+import re
 
-# Delete unused bones (without vertices rigged to them) from the armature
+def delete_vertex_groups_without_weights(obj):
+    try:
+        vertex_groups = obj.vertex_groups
+        groups = {r : None for r in range(len(vertex_groups))}
 
-# Gather the names of all vertex groups for all children
-all_vertex_groups = set()
-armature = bpy.context.active_object
+        for vert in obj.data.vertices:
+            for vg in vert.groups:
+                i = vg.group
+                if i in groups:
+                    del groups[i]
 
-def cleanup_armature():
+        lis = [k for k in groups]
+        lis.sort(reverse=True)
+        for i in lis:
+            vertex_groups.remove(vertex_groups[i])
+    except:
+        pass
     
-    for mesh in bpy.context.scene.objects:
-        if mesh.type == 'MESH' and mesh.parent == armature:
+def delete_vertex_groups_without_corresponding_bone(obj, bone_names):
+     
+    groups_to_delete = [
+        group.name for group in obj.vertex_groups
+        if group.name not in bone_names
+    ]
+    
+    # Remove the vertex groups
+    for group_name in groups_to_delete:
+        group = obj.vertex_groups.get(group_name)
+        if group:
+            obj.vertex_groups.remove(group)
+            print(f"Deleted vertex group '{group_name}' from '{obj.name}'")
 
-            # Check and delete vertex groups with no vertices assigned
-            for group in mesh.vertex_groups:
-                print(group)
-                if not any(vg.group == mesh.vertex_groups[vg.group].index for v in mesh.data.vertices for vg in v.groups):
-                    mesh.vertex_groups.remove(mesh.vertex_groups[group])
-            
-            all_vertex_groups.update(mesh.vertex_groups.keys())    
 
-def delete_unused_bones():    
+def get_all_vertex_groups(armature):
+    bpy.ops.object.mode_set(mode='EDIT')
+    return {vg.name for mesh in (child for child in armature.children if child.type == 'MESH') for vg in mesh.vertex_groups}
+
+def delete_unused_bones(armature, all_vertex_groups):
     # Delete bones that aren't in the list
-    for bone in armature.data.bones:
+    bpy.ops.object.mode_set(mode='EDIT')
+    o = bpy.context.object
+    b = armature.data.edit_bones[0]
+    for bone in b.children_recursive:
+        m = re.search(r'\.\d+$', bone.name)
+        if m is not None:
+           bone.name = bone.name.replace(m[0], "")
         if bone.name not in all_vertex_groups:
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.armature.select_all(action='DESELECT')
-            bpy.ops.armature.select_all(action='SELECT')
-            bpy.ops.armature.delete()
-            bpy.ops.object.mode_set(mode='OBJECT')
+           print(f"Deleting bone {bone.name}")
+           bpy.context.object.data.edit_bones.remove(bone)
+    
 
-# Run the cleanup function
-cleanup_armature()
+def get_parent_armature(mesh):
+    if mesh.parent and mesh.parent.type == 'ARMATURE':
+        return mesh.parent
+    return None
 
-print(all_vertex_groups)
-delete_unused_bones()
+selected_objects = bpy.context.selected_objects
+armature_selected = len(selected_objects) == 1 and selected_objects[0].type == 'ARMATURE'
+meshes_selected = meshes_selected = len(selected_objects) > 0 and all(obj.type == 'MESH' for obj in selected_objects)
+
+if armature_selected:
+    armature = selected_objects[0]
+    bone_names = {bone.name for bone in armature.data.bones}
+    for mesh in (child for child in armature.children if child.type == 'MESH'):
+        delete_vertex_groups_without_weights(mesh)
+        delete_vertex_groups_without_corresponding_bone(mesh, bone_names)
+    vertex_groups = get_all_vertex_groups(armature)
+    delete_unused_bones(armature, vertex_groups)
+    
+
+if meshes_selected:
+    for mesh in selected_objects:        
+        armature = get_parent_armature(mesh)        
+        bone_names = {bone.name for bone in armature.data.bones}
+        delete_vertex_groups_without_weights(mesh)
+        delete_vertex_groups_without_corresponding_bone(mesh, bone_names)
+
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    ob = bpy.data.objects.get(armature.name)
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    
+    vertex_groups = get_all_vertex_groups(armature)        
+    delete_unused_bones(armature, vertex_groups)
+    
