@@ -1,5 +1,7 @@
 import json
 
+# for a guide on how to use this, check https://wiki.redmodding.org/cyberpunk-2077-modding/for-mod-creators/3d-modelling/blender-getting-started/blender-running-python-scripts
+
 # path to the folder with your prop files. Make sure to double your slashes!! 
 # wrong: C:\Games 
 # right: C:\\Games
