@@ -51,7 +51,10 @@ def apply_surface_deform_to_shapekeys(mesh, modifier_name="Surface Deform"):
     # Apply all modifiers except Armature and shapekey-related modifiers
     bpy.context.view_layer.objects.active = mesh_copy
     delete_all_shapekeys(mesh_copy)
-    bpy.ops.object.modifier_apply(modifier=modifier_name) 
+    try:
+        bpy.ops.object.modifier_apply(modifier=modifier_name) 
+    except:
+        print(f"Failed applying surface deform to mesh '{mesh.name}'")
     
     if mesh.data.shape_keys is not None:      
     
