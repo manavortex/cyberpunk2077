@@ -81,8 +81,6 @@ def apply_surface_deform_to_all_objects():
     # Iterate through all objects in the scene (whether visible or not)
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
-            for mod in obj.modifiers:
-                print(mod.type)
             # Check if the object has a Surface Deform modifier
             if any(mod.type == 'SURFACE_DEFORM' for mod in obj.modifiers):
                 print(f"Applying Surface Deform to '{obj.name}'...")
