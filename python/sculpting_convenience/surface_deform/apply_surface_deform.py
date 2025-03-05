@@ -82,7 +82,9 @@ def apply_surface_deform_to_all_objects():
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
             # Check if the object has a Surface Deform modifier
-            if any(mod.type == 'SURFACE_DEFORM' for mod in obj.modifiers):
+            for mod in obj.modifiers:
+                if mod.type != 'SURFACE_DEFORM':
+                    continue
                 print(f"Applying Surface Deform to '{obj.name}'...")
                 apply_surface_deform_to_shapekeys(obj, mod.name)
             else:
