@@ -75,5 +75,26 @@ def apply_surface_deform_to_all_objects():
         else:
             print(f"Skipping '{obj.name}': No Surface Deform modifier found.")
 
+# ------------ dialog -------------
+
+# show user feedback (if we can)
+def showPopup(title, message_):
+    try:
+        windll.user32.MessageBoxW(None, message_, title, 1)
+    except: 
+        try:
+            bpy.ops.cp77.message_box('INVOKE_DEFAULT', message=message_)
+        except:
+            pass
+        
+# ------------ main: run -------------
+
 if __name__ == "__main__":
-    apply_surface_deform_to_all_objects()
+    try:
+        apply_surface_deform_to_all_objects()
+        showPopup('Shapekeys applied :)', "Your shapekeys have been applied! You can now export your deforms")
+    except Exception as e:
+        showPopup('There was an error!', "An error has occurred! Please select View -> Toggle Blender Console and find help on discord.gg/redmodding!")
+        raise e
+
+
