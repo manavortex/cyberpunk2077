@@ -1,5 +1,7 @@
 import bpy
 
+full_debug_output = False
+
 def delete_all_shapekeys(obj):
     """Deletes all shapekeys for a given object, iterating backwards."""
     if obj.data.shape_keys:
@@ -60,7 +62,8 @@ def apply_surface_deform_to_shapekeys(mesh, modifier_name="Surface Deform"):
             mesh.active_shape_key_index = shape_keys.keys().index(shapekey.name)
             for i, vert in enumerate(mesh.data.vertices):
                 shapekey.data[i].co += deformed_verts[i] - vert.co
-            print(f"Applied Surface Deform offsets to shapekey '{shapekey.name}' for mesh '{mesh.name}'")        
+            if full_debug_output:
+              print(f"Applied Surface Deform offsets to shapekey '{shapekey.name}' for mesh '{mesh.name}'")        
         bpy.data.objects.remove(mesh_copy, do_unlink=True)
     else:
         # Replace the original mesh with the modified copy
