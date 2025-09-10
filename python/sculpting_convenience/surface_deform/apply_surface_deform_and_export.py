@@ -149,17 +149,6 @@ class QueryExtensionOperator(Operator):
     def modal(self, context, event):
         return {'PASS_THROUGH'}
 
-    def check(self, context):
-        return True
-
-    def finish(self):
-        bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
-
-    def execute_finish(self, context):
-        export_file_extension = self.user_extension
-        bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
-        return {'FINISHED'}
-
     def invoke(self, context, event):
         # Overriding invoke to ensure proper dialog use
         result = context.window_manager.invoke_props_dialog(self)
@@ -232,7 +221,7 @@ class BackupApplyExportOperator(Operator):
         bpy.ops.wm.open_mainfile(filepath=original_path)
         self.report({'INFO'}, "Restored original file.")
 
-        showPopup('Shapekeys applied :)', f"Your shapekeys have been applied; {exported_count} collections have been exported!")
+        showPopup('Shapekeys applied :)', f"Your shapekeys have been applied; {exported_count} collections have been exported to {file_extension}!")
         return {'FINISHED'}
     
     def apply_shapekeys(self):
