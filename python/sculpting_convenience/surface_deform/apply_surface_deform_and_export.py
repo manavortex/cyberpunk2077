@@ -5,8 +5,6 @@ from bpy.types import Operator
 from bpy_extras.io_utils import ExportHelper
 from i_scene_cp77_gltf.exporters.glb_export import export_cyberpunk_glb
 
-full_debug_output = False
-
 # This script will do the following things:
 # 1. Select an export folder
 # 2. Ask you for a file extension (.glb for meshes, .morphtarget.glb otherwise)
@@ -38,6 +36,35 @@ def showPopup(title, message_):
         print(f"{title}: {message_}")
 
 
+def detect_extension(folder):
+    if not folder or not os.path.isdir(folder):
+        raise ValueError("Export folder invalid")
+     
+    files = os.listdir(folder) 
+
+    # Detect extensions for all collections
+    extensions = set()
+    for coll in bpy.data.collections:        
+        full_name = ([f for f in files if f.startswith(coll.name)] or [None])[0]
+        
+        if not full_name:
+            continue
+
+        file_name, file_ext = os.path.splitext(full_name)
+        extensions.add(file_ext)        
+    
+    if ".morphtarget.glb" in extensions:
+        return ".morphtarget.glb"
+
+    if len(extensions) == 1:
+        # All matched the same extension: use it
+        return extensions.pop()
+    
+    # Query file exception
+    bpy.ops.wm.query_extension('INVOKE_DEFAULT')
+    
+   
+    
 # Operator to select export folder
 class SelectExportFolderOperator(Operator, ExportHelper):
     bl_idname = "wm.select_export_folder"
@@ -65,13 +92,26 @@ class SelectExportFolderOperator(Operator, ExportHelper):
         # Store selected folder globally for next operator usage
         export_folder = folder
 
-        # Run next step (detect or query file extension)
-        bpy.ops.wm.detect_or_query_extension('INVOKE_DEFAULT')
-        return {'FINISHED'}
+        try:
+           export_file_extension = detect_extension(folder)
+        except Exception as exception:
+            self.report({'ERROR'}, "Exception message: {}".format(exception))
+            return { 'CANCELLED' }
+
+        if not export_file_extension:
+            self.report({'ERROR'}, "No file extension")
+            return { 'CANCELLED' }            
+               
+        if not export_file_extension.startswith("."):
+            export_file_extension = "." + export_file_extension         
+         
+        # Proceed to apply shapekeys and export
+        return bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
+
 
 # Operator to detect or query file extension
-class DetectOrQueryExtensionOperator(Operator):
-    bl_idname = "wm.detect_or_query_extension"
+class QueryExtensionOperator(Operator):
+    bl_idname = "wm.query_extension"
     bl_label = "Detect or Query File Extension"
 
     user_extension: StringProperty(
@@ -90,37 +130,17 @@ class DetectOrQueryExtensionOperator(Operator):
             self.report({'ERROR'}, "Export folder not set or invalid.")
             return {'CANCELLED'}
 
-        # Detect extensions for all collections
-        extensions = set()
-        for coll in bpy.data.collections:
-            matched_ext = None
-            files_starting_with = [f for f in os.listdir(folder) if f.startswith(coll.name)]
-            
-            print(files_starting_with)
-            if files_starting_with:
-                for f in files_starting_with:
-                    ext = f[len(coll.name):].strip()
-                    if ext:
-                        matched_ext = ext
-                        break
-            if matched_ext:
-                extensions.add(matched_ext)
-            
-        if len(extensions) == 1:
-            # All matched the same extension: use it
-            export_file_extension = extensions.pop()
-            # Proceed to apply shapekeys and export
-            bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
-            return {'FINISHED'}
 
-        else:
-            # Multiple or no extensions found, prompt user
-            return context.window_manager.invoke_props_dialog(self)
+        # Multiple or no extensions found, prompt user
+        ret = context.window_manager.invoke_props_dialog(self)
+        if ret == {'FINISHED'}:
+            export_file_extension = user_extension
+        return ret
 
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="Multiple or no file extensions detected.")
+        layout.label(text="Please enter file extension (with leading .)")
         layout.prop(self, "user_extension", text="File extension to use")
 
     def cancel(self, context):
@@ -179,7 +199,8 @@ class BackupApplyExportOperator(Operator):
         bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=True)
         self.report({'INFO'}, f"Backup saved: {backup_path}")
 
-        # Apply shapekeys - replace this with your full logic
+        show_popup("Exporting collections", "Exporting collections - Blender will be unresponsive for a while")
+
         self.apply_shapekeys()
 
         # Export collections
@@ -206,15 +227,12 @@ class BackupApplyExportOperator(Operator):
                 static_prop=False
             )
             exported_count += 1
-            self.report({'INFO'}, f"Exported {collection.name}")
 
-        showPopup("Done!", f"Exported {exported_count} collections successfully.\nRestoring your original file...")
-
-        # Restore original file (switch back)
+       # Restore original file (switch back)
         bpy.ops.wm.open_mainfile(filepath=original_path)
         self.report({'INFO'}, "Restored original file.")
 
-        showPopup('Shapekeys applied :)', "Your shapekeys have been applied and exported!")
+        showPopup('Shapekeys applied :)', f"Your shapekeys have been applied; {exported_count} collections have been exported!")
         return {'FINISHED'}
     
     def apply_shapekeys(self):
@@ -286,9 +304,7 @@ class BackupApplyExportOperator(Operator):
             for shapekey in shape_keys:
                 mesh.active_shape_key_index = shape_keys.keys().index(shapekey.name)
                 for i, vert in enumerate(mesh.data.vertices):
-                    shapekey.data[i].co += deformed_verts[i] - vert.co
-                if full_debug_output:
-                  print(f"Applied Surface Deform offsets to shapekey '{shapekey.name}' for mesh '{mesh.name}'")        
+                    shapekey.data[i].co += deformed_verts[i] - vert.co       
             bpy.data.objects.remove(mesh_copy, do_unlink=True)
         else:
             # Replace the original mesh with the modified copy
@@ -297,16 +313,15 @@ class BackupApplyExportOperator(Operator):
     
 def register():
     bpy.utils.register_class(SelectExportFolderOperator)
-    bpy.utils.register_class(DetectOrQueryExtensionOperator)
+    bpy.utils.register_class(QueryExtensionOperator)
     bpy.utils.register_class(BackupApplyExportOperator)
 
 def unregister():
     bpy.utils.unregister_class(BackupApplyExportOperator)
-    bpy.utils.unregister_class(DetectOrQueryExtensionOperator)
+    bpy.utils.unregister_class(QueryExtensionOperator)
     bpy.utils.unregister_class(SelectExportFolderOperator)
     
 # ------------ main: run -------------
 if __name__ == "__main__":
     register()
     bpy.ops.wm.select_export_folder('INVOKE_DEFAULT')
-
