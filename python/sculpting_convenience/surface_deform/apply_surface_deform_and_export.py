@@ -188,7 +188,7 @@ class BackupApplyExportOperator(Operator):
         bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=True)
         self.report({'INFO'}, f"Backup saved: {backup_path}")
 
-        show_popup("Exporting collections", "Exporting collections - Blender will be unresponsive for a while")
+        showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a while")
 
         self.apply_shapekeys()
 
