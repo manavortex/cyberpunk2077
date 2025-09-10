@@ -4,6 +4,7 @@ from bpy.props import StringProperty, EnumProperty
 from bpy.types import Operator
 from bpy_extras.io_utils import ExportHelper
 from i_scene_cp77_gltf.exporters.glb_export import export_cyberpunk_glb
+import time
 
 # This script will do the following things:
 # 1. Select an export folder
@@ -161,6 +162,7 @@ class QueryExtensionOperator(Operator):
     
     
 # Operator to backup, apply shapekeys, export, and restore original file
+
 class BackupApplyExportOperator(Operator):
     bl_idname = "wm.backup_apply_export"
     bl_label = "Backup, Apply Shapekeys, Export, Restore"
@@ -169,7 +171,7 @@ class BackupApplyExportOperator(Operator):
         global original_path
         global export_file_extension
         global export_folder
-                
+        
         wm = context.window_manager
         original_path = bpy.data.filepath
         folder = export_folder
@@ -184,29 +186,47 @@ class BackupApplyExportOperator(Operator):
 
         backup_path = original_path.rsplit(".", 1)[0] + "_EXPORT_TEMP.blend"
 
-        # Save copy to backup path & switch to it
+        # Save copy to backup path
         bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=True)
         self.report({'INFO'}, f"Backup saved: {backup_path}")
 
-        showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a while")
+        showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a minute or two.")
 
+        start_time = time.time()
         self.apply_shapekeys()
+        shapekey_time = time.time() - start_time
+        print(f"Shapekeys applied in {shapekey_time:.2f} seconds")
 
         # Export collections
         exported_count = 0
+        export_start_time = time.time()
+        
+        # Pre-calculate which objects to export
+        objects_to_export = []
         for collection in bpy.data.collections:
             set_visible(collection)
-            bpy.ops.object.select_all(action='DESELECT')
-            selected_objs = []
+            collection_objects = []
             for obj in collection.objects:
                 if obj.type == 'MESH' and obj.name.startswith('submesh_'):
-                    obj.select_set(True)
-                    selected_objs.append(obj)
-            if not selected_objs:
+                    collection_objects.append(obj)
+            if collection_objects:
+                objects_to_export.append((collection.name, collection_objects))
+
+        # Export each collection
+        for collection_name, objs in objects_to_export:
+            # Deselect all first
+            bpy.ops.object.select_all(action='DESELECT')
+            
+            # Select objects for this collection
+            for obj in objs:
+                obj.select_set(True)
+            
+            if not objs:
                 continue
 
-            targetPath = os.path.join(folder, f"{collection.name}{file_extension}")
+            targetPath = os.path.join(folder, f"{collection_name}{file_extension}")
             print(f"Exporting: {targetPath}")
+            
             export_cyberpunk_glb(
                 bpy.context,
                 targetPath,
@@ -217,56 +237,68 @@ class BackupApplyExportOperator(Operator):
             )
             exported_count += 1
 
-       # Restore original file (switch back)
+        export_time = time.time() - export_start_time
+        print(f"Exported {exported_count} collections in {export_time:.2f} seconds")
+
+        # Restore original file
         bpy.ops.wm.open_mainfile(filepath=original_path)
         self.report({'INFO'}, "Restored original file.")
 
-        showPopup('Shapekeys applied :)', f"Your shapekeys have been applied; {exported_count} collections have been exported to {file_extension}!")
+        total_time = time.time() - start_time
+        showPopup('Shapekeys applied :)', 
+                 f"Your shapekeys have been applied; {exported_count} collections exported in {total_time:.1f}s!")
+        
         return {'FINISHED'}
     
     def apply_shapekeys(self):
         """Applies Surface Deform modifier to all mesh objects in the scene."""
+        # Pre-filter objects with surface deform modifiers
+        objects_to_process = []
         for obj in bpy.data.objects:
-            if obj.type == 'MESH' and any(mod.type == 'SURFACE_DEFORM' for mod in obj.modifiers):
-                print(f"Applying Surface Deform to '{obj.name}'...")
-                self.apply_surface_deform_to_shapekeys(obj)
-            else:
-                print(f"Skipping '{obj.name}': No Surface Deform modifier found.")                
-                
+            if obj.type == 'MESH':
+                for mod in obj.modifiers:
+                    if mod.type == 'SURFACE_DEFORM':
+                        objects_to_process.append(obj)
+                        break
+        
+        for obj in objects_to_process:
+            print(f"Applying Surface Deform to '{obj.name}'...")
+            self.apply_surface_deform_to_shapekeys(obj)
 
     def delete_all_shapekeys(self, obj):
-        """Deletes all shapekeys for a given object, iterating backwards."""
-        if obj.data.shape_keys:
-            for key_block in reversed(obj.data.shape_keys.key_blocks):
-                obj.shape_key_remove(key_block)
+        """Deletes all shapekeys for a given object efficiently."""
+        # Remove all shape keys at once by clearing the key_blocks
+        while obj.data.shape_keys and obj.data.shape_keys.key_blocks:
+            obj.shape_key_remove(obj.data.shape_keys.key_blocks[0])
 
     def replace_mesh_with_copy(self, mesh, mesh_copy):
         """Replaces the vertex data of the original mesh with the copied mesh."""
-        # Delete all vertices from the original mesh
-        bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.select_all(action='DESELECT')
-        mesh.select_set(True)
-        bpy.context.view_layer.objects.active = mesh
-
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.mesh.delete(type='VERT')
-        bpy.ops.object.mode_set(mode='OBJECT')
-
-        # Replace the original mesh data with the copied mesh data
-        mesh.data = mesh_copy.data.copy()
-
-        # Remove the temporary mesh copy
+        # Store original mesh data name for cleanup
+        original_mesh_data_name = mesh.data.name
+        
+        # Directly replace the mesh data instead of manual vertex deletion
+        mesh.data = mesh_copy.data
+        
+        # Remove the old mesh data if it's not used elsewhere
+        old_mesh_data = bpy.data.meshes.get(original_mesh_data_name)
+        if old_mesh_data and old_mesh_data.users == 0:
+            bpy.data.meshes.remove(old_mesh_data)
+        
+        # Remove the temporary mesh copy object
         bpy.data.objects.remove(mesh_copy, do_unlink=True)
         print(f"Replaced vertex data for mesh '{mesh.name}'")
 
     def apply_surface_deform_to_shapekeys(self, mesh, modifier_name="Surface Deform"):
-        """Applies Surface Deform modifier to shapekeys or replaces mesh data if no shapekeys exist."""
+        """Applies Surface Deform modifier to shapekeys efficiently."""
         bpy.context.view_layer.objects.active = mesh
-        bpy.ops.object.mode_set(mode='OBJECT')
-
+        
         # Check if the Surface Deform modifier exists
-        surf_def_mod = mesh.modifiers.get(modifier_name)
+        surf_def_mod = None
+        for mod in mesh.modifiers:
+            if mod.type == 'SURFACE_DEFORM':
+                surf_def_mod = mod
+                break
+        
         if not surf_def_mod:
             print(f"No Surface Deform modifier found on {mesh.name}.")
             return
@@ -278,27 +310,39 @@ class BackupApplyExportOperator(Operator):
 
         # Apply the Surface Deform modifier to the copy
         bpy.context.view_layer.objects.active = mesh_copy
+        
+        # Remove shapekeys from copy efficiently
         self.delete_all_shapekeys(mesh_copy)
+        
         try:
-            bpy.ops.object.modifier_apply(modifier=modifier_name)
+            # Apply modifier directly without operator for better performance
+            bpy.context.view_layer.objects.active = mesh_copy
+            bpy.ops.object.modifier_apply(modifier=surf_def_mod.name)
         except Exception as e:
             print(f"Failed applying Surface Deform to mesh '{mesh.name}': {e}")
             bpy.data.objects.remove(mesh_copy, do_unlink=True)
             return
 
         if mesh.data.shape_keys:
-            # Apply the deformed vertex positions to each shapekey
-            deformed_verts = [v.co for v in mesh_copy.data.vertices]
+            # Get deformed vertices data once
+            deformed_verts = [v.co.copy() for v in mesh_copy.data.vertices]
+            original_verts = [v.co.copy() for v in mesh.data.vertices]
+            
+            # Calculate the difference vector once
+            diff_vectors = []
+            for i in range(len(deformed_verts)):
+                diff_vectors.append(deformed_verts[i] - original_verts[i])
+            
+            # Apply to all shapekeys
             shape_keys = mesh.data.shape_keys.key_blocks
             for shapekey in shape_keys:
-                mesh.active_shape_key_index = shape_keys.keys().index(shapekey.name)
-                for i, vert in enumerate(mesh.data.vertices):
-                    shapekey.data[i].co += deformed_verts[i] - vert.co       
+                for i in range(len(shapekey.data)):
+                    shapekey.data[i].co += diff_vectors[i]
+            
             bpy.data.objects.remove(mesh_copy, do_unlink=True)
         else:
             # Replace the original mesh with the modified copy
             self.replace_mesh_with_copy(mesh, mesh_copy)
-
     
 def register():
     bpy.utils.register_class(SelectExportFolderOperator)
