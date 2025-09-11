@@ -16,6 +16,9 @@ import time
 # 7. Open the original file from step 3
 
 
+# Shapekey application logic ruthlessly stolen from SKKeeper: https://github.com/smokejohn/SKkeeper
+# Thank you! <3 
+
 original_path = ""
 export_folder = ""
 export_file_extension = ""
@@ -64,7 +67,68 @@ def detect_extension(folder):
     # Query file exception
     bpy.ops.wm.query_extension('INVOKE_DEFAULT')
     
-   
+    
+def apply_modifiers(obj):
+    """ applies all modifiers in order """
+    # now uses object.convert to circumvent errors with disabled modifiers
+
+    modifiers = obj.modifiers
+    for modifier in modifiers:
+        if modifier.type == 'SUBSURF':
+            modifier.show_only_control_edges = False
+
+    for o in bpy.context.scene.objects:
+        o.select_set(False)
+
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+
+    bpy.ops.object.convert(target='MESH')    
+    
+def apply_shapekey(obj, sk_keep):
+    """ deletes all shapekeys except the one with the given index """
+
+    shapekeys = obj.data.shape_keys.key_blocks
+
+    # check for valid index
+    if sk_keep < 0 or sk_keep > len(shapekeys):
+        return
+
+    # remove all other shapekeys
+    for i in reversed(range(0, len(shapekeys))):
+        if i != sk_keep:
+            obj.shape_key_remove(shapekeys[i])
+
+    # remove the chosen one and bake it into the object
+    obj.shape_key_remove(shapekeys[0])
+    
+def add_objs_shapekeys(destination, sources):
+    """ takes an array of objects and adds them as shapekeys to the destination
+    object """
+    for o in bpy.context.scene.objects:
+        o.select_set(False)
+
+    for src in sources:
+        src.select_set(True)
+
+    bpy.context.view_layer.objects.active = destination
+    bpy.ops.object.join_shapes()
+
+
+def copy_object(obj, times=1, offset=0):
+    """ copies the given object and links it to the main collection"""
+
+    objects = []
+    for i in range(0, times):
+        copy_obj = obj.copy()
+        copy_obj.data = obj.data.copy()
+        copy_obj.name = obj.name + "_shapekey_" + str(i+1)
+        copy_obj.location.x += offset*(i+1)
+
+        bpy.context.collection.objects.link(copy_obj)
+        objects.append(copy_obj)
+
+    return objects   
     
 # Operator to select export folder
 class SelectExportFolderOperator(Operator, ExportHelper):
@@ -133,7 +197,7 @@ class QueryExtensionOperator(Operator):
 
 
         # Multiple or no extensions found, prompt user
-        ret = context.window_manager.invoke_props_dialog(self)
+        ret = context.window_manager.invoke_props_diaprint(self)
         if ret == {'FINISHED'}:
             export_file_extension = user_extension
         return ret
@@ -152,14 +216,14 @@ class QueryExtensionOperator(Operator):
 
     def invoke(self, context, event):
         # Overriding invoke to ensure proper dialog use
-        result = context.window_manager.invoke_props_dialog(self)
+        result = context.window_manager.invoke_props_diaprint(self)
         return result
 
     def execute(self, context):
         export_file_extension = self.user_extension
         bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
         return {'FINISHED'}
-    
+
     
 # Operator to backup, apply shapekeys, export, and restore original file
 
@@ -190,12 +254,30 @@ class BackupApplyExportOperator(Operator):
         bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=False)
         self.report({'INFO'}, f"Backup saved: {backup_path}")
 
-        showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a minute or two.")
-
+        
+        error_count = 0
+        processed_count = 0
         start_time = time.time()
-        self.apply_shapekeys()
+        
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH' and any(mod.type == 'SURFACE_DEFORM' for mod in obj.modifiers):
+                print(f"Applying Surface Deform to '{obj.name}'...")                
+                try:
+                    result = self.keep_shapekeys(obj)
+                    if result == {'CANCELLED'}:
+                        print("Error processing {}".format(obj.name))
+                        error_count += 1
+                    else:
+                        print("Successfully processed {}".format(obj.name))
+                        processed_count += 1
+                except Exception as e:
+                    print("Exception processing {}: {}".format(obj.name, str(e)))
+            error_count += 1
+            
         shapekey_time = time.time() - start_time
         print(f"Shapekeys applied in {shapekey_time:.2f} seconds")
+
+        showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a minute or two.")
 
         # Export collections
         exported_count = 0
@@ -248,101 +330,140 @@ class BackupApplyExportOperator(Operator):
         showPopup('Shapekeys applied :)', 
                  f"Your shapekeys have been applied; {exported_count} collections exported in {total_time:.1f}s!")
         
+        return {'FINISHED'}   
+       
+    def apply_modifier(obj, modifier_name):
+        """ applies a specific modifier """
+
+        print("Applying chosen modifier")
+
+        modifier = [mod for mod in obj.modifiers if mod.name == modifier_name][0]
+
+        # deselect all
+        for o in bpy.context.scene.objects:
+            o.select_set(False)
+
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
+         
+    def apply_modifiers(obj):
+        """ applies all modifiers in order """
+        # now uses object.convert to circumvent errors with disabled modifiers
+
+        modifiers = obj.modifiers
+        for modifier in modifiers:
+            if modifier.type == 'SURFACE_DEFORM':
+                apply_modifier(obj, modifier.name)
+
+        
+    def keep_shapekeys(self, obj):
+        """
+        Function which is used by the blender operators to collapse modifier
+        stack and keep shapekeys.
+        """
+
+        # Check if the object has shapekeys
+        has_shapekeys = obj.data.shape_keys is not None and len(
+            obj.data.shape_keys.key_blocks) > 0
+
+        if not has_shapekeys:
+            # Apply modifiers directly if no shapekeys to preserve
+            print("Object {} has no shapekeys, applying modifiers directly".format(obj.name))
+            apply_modifiers(obj)
+            return {'FINISHED'}
+
+        shapekey_names = [
+            block.name for block in obj.data.shape_keys.key_blocks]
+
+        # create receiving object that will contain all collapsed shapekeys
+        receiver = copy_object(obj, times=1, offset=0)[0]
+        receiver.name = "shapekey_receiver"
+        apply_shapekey(receiver, 0)
+        apply_modifiers(receiver)
+        
+        num_shapekeys = len(obj.data.shape_keys.key_blocks)
+
+        shapekeys_to_process = len(shapekey_names) - 1
+        print("Processing {} shapekeys on {}".format(
+            shapekeys_to_process, obj.name))
+
+        # create a copy for each shapekey and transfer it to the receiver one after the other
+        # start the loop at 1 so we skip the base shapekey
+        for shapekey_index in range(1, num_shapekeys):
+            print("Processing shapekey {} with name {}".format(
+                shapekey_index, shapekey_names[shapekey_index]))
+
+            # copy of baseobject / shapekey donor
+            shapekey_obj = copy_object(obj, times=1, offset=0)[0]
+            apply_shapekey(shapekey_obj, shapekey_index)
+            apply_modifiers(shapekey_obj)
+            
+            # add the copy as a shapekey to the receiver
+            add_objs_shapekeys(receiver, [shapekey_obj])
+
+            # check if the shapekey could be added
+            # due to problematic modifier stack
+            help_url = "https://github.com/smokejohn/SKkeeper/blob/master/readme.md#troubleshooting-problems"
+            if receiver.data.shape_keys is None:
+                error_msg = ("IMPOSSIBLE TO TRANSFER SHAPEKEY BECAUSE OF VERTEX COUNT MISMATCH\n\n"
+                             "The processed shapekey {} with name {} cannot be transferred.\n"
+                             "The shapekey doesn't have the same vertex count as the base after applying modifiers.\n"
+                             "This is most likely due to a problematic modifier in your modifier stack (Decimate, Weld)\n\n"
+                             "For help on how to fix problems visit: {}).\n\n"
+                             "Press UNDO to return to your previous working state."
+                             )
+                self.report({'ERROR'}, error_msg.format(
+                    shapekey_index, shapekey_names[shapekey_index], help_url))
+                return {'CANCELLED'}
+
+            # due to problematic shape key
+            num_transferred_keys = len(receiver.data.shape_keys.key_blocks) - 1
+            if num_transferred_keys != shapekey_index:
+                error_msg = ("IMPOSSIBLE TO TRANSFER SHAPEKEY BECAUSE OF VERTEX COUNT MISMATCH\n\n"
+                             "The processed shapekey {} with name {} cannot be transferred.\n"
+                             "The shapekey doesn't have the same vertex count as the base after applying modifiers.\n"
+                             "For help on how to fix problems visit: {}).\n\n"
+                             "Press UNDO to return to your previous working state."
+                             )
+                self.report({'ERROR'}, error_msg.format(
+                    shapekey_index, shapekey_names[shapekey_index], help_url))
+                return {'CANCELLED'}
+
+            # restore the shapekey name
+            receiver.data.shape_keys.key_blocks[shapekey_index].name = shapekey_names[shapekey_index]
+
+            # delete the shapekey donor and its mesh datablock (save memory)
+            mesh_data = shapekey_obj.data
+            bpy.data.objects.remove(shapekey_obj)
+            bpy.data.meshes.remove(mesh_data)
+
+        orig_name = obj.name
+        orig_data = obj.data
+
+        # transfer over drivers on shapekeys if they exist
+        if orig_data.shape_keys.animation_data is not None:
+            receiver.data.shape_keys.animation_data_create()
+            for orig_driver in orig_data.shape_keys.animation_data.drivers:
+                receiver.data.shape_keys.animation_data.drivers.from_existing(
+                    src_driver=orig_driver)
+
+            # if the driver has variable targets that refer to the original object
+            # we need to retarget them to the new receiver because we delete the
+            # original object later
+            for fcurve in receiver.data.shape_keys.animation_data.drivers:
+                for variable in fcurve.driver.variables:
+                    for target in variable.targets:
+                        if target.id == obj:
+                            target.id = receiver
+
+        # delete the original and its mesh data
+        bpy.data.objects.remove(obj)
+        bpy.data.meshes.remove(orig_data)
+
+        # rename the receiver
+        receiver.name = orig_name
+
         return {'FINISHED'}
-    
-    def apply_shapekeys(self):
-        """Applies Surface Deform modifier to all mesh objects in the scene."""
-        # Pre-filter objects with surface deform modifiers
-        objects_to_process = []
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH':
-                for mod in obj.modifiers:
-                    if mod.type == 'SURFACE_DEFORM':
-                        objects_to_process.append(obj)
-                        break
-        
-        for obj in objects_to_process:
-            print(f"Applying Surface Deform to '{obj.name}'...")
-            self.apply_surface_deform_to_shapekeys(obj)
-
-    def delete_all_shapekeys(self, obj):
-        """Deletes all shapekeys for a given object efficiently."""
-        # Remove all shape keys at once by clearing the key_blocks
-        while obj.data.shape_keys and obj.data.shape_keys.key_blocks:
-            obj.shape_key_remove(obj.data.shape_keys.key_blocks[0])
-
-    def replace_mesh_with_copy(self, mesh, mesh_copy):
-        """Replaces the vertex data of the original mesh with the copied mesh."""
-        # Store original mesh data name for cleanup
-        original_mesh_data_name = mesh.data.name
-        
-        # Directly replace the mesh data instead of manual vertex deletion
-        mesh.data = mesh_copy.data
-        
-        # Remove the old mesh data if it's not used elsewhere
-        old_mesh_data = bpy.data.meshes.get(original_mesh_data_name)
-        if old_mesh_data and old_mesh_data.users == 0:
-            bpy.data.meshes.remove(old_mesh_data)
-        
-        # Remove the temporary mesh copy object
-        bpy.data.objects.remove(mesh_copy, do_unlink=True)
-        print(f"Replaced vertex data for mesh '{mesh.name}'")
-
-    def apply_surface_deform_to_shapekeys(self, mesh, modifier_name="Surface Deform"):
-        """Applies Surface Deform modifier to shapekeys efficiently."""
-        bpy.context.view_layer.objects.active = mesh
-        
-        # Check if the Surface Deform modifier exists
-        surf_def_mod = None
-        for mod in mesh.modifiers:
-            if mod.type == 'SURFACE_DEFORM':
-                surf_def_mod = mod
-                break
-        
-        if not surf_def_mod:
-            print(f"No Surface Deform modifier found on {mesh.name}.")
-            return
-
-        # Create a temporary copy of the mesh to apply the modifier
-        mesh_copy = mesh.copy()
-        mesh_copy.data = mesh.data.copy()
-        bpy.context.collection.objects.link(mesh_copy)
-
-        # Apply the Surface Deform modifier to the copy
-        bpy.context.view_layer.objects.active = mesh_copy
-        
-        # Remove shapekeys from copy efficiently
-        self.delete_all_shapekeys(mesh_copy)
-        
-        try:
-            # Apply modifier directly without operator for better performance
-            bpy.context.view_layer.objects.active = mesh_copy
-            bpy.ops.object.modifier_apply(modifier=surf_def_mod.name)
-        except Exception as e:
-            print(f"Failed applying Surface Deform to mesh '{mesh.name}': {e}")
-            bpy.data.objects.remove(mesh_copy, do_unlink=True)
-            return
-
-        if mesh.data.shape_keys:
-            # Get deformed vertices data once
-            deformed_verts = [v.co.copy() for v in mesh_copy.data.vertices]
-            original_verts = [v.co.copy() for v in mesh.data.vertices]
-            
-            # Calculate the difference vector once
-            diff_vectors = []
-            for i in range(len(deformed_verts)):
-                diff_vectors.append(deformed_verts[i] - original_verts[i])
-            
-            # Apply to all shapekeys
-            shape_keys = mesh.data.shape_keys.key_blocks
-            for shapekey in shape_keys:
-                for i in range(len(shapekey.data)):
-                    shapekey.data[i].co += diff_vectors[i]
-            
-            bpy.data.objects.remove(mesh_copy, do_unlink=True)
-        else:
-            # Replace the original mesh with the modified copy
-            self.replace_mesh_with_copy(mesh, mesh_copy)
     
 def register():
     bpy.utils.register_class(SelectExportFolderOperator)
