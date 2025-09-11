@@ -17,7 +17,7 @@ import time
 
 
 original_path = ""
-export_folder = ""
+export_folder = "",
 export_file_extension = ""
 
 # Helper to set collections visible (recursive)
@@ -25,7 +25,7 @@ def set_visible(coll):
     coll.hide_viewport = False
     coll.hide_render = False
     for child in coll.children:
-        set_visible(child)
+        child.hide_set(False)
 
 # Informational popup (optional)
 def showPopup(title, message_):
@@ -64,68 +64,7 @@ def detect_extension(folder):
     # Query file exception
     bpy.ops.wm.query_extension('INVOKE_DEFAULT')
     
-    
-def apply_modifiers(obj):
-    """ applies all modifiers in order """
-    # now uses object.convert to circumvent errors with disabled modifiers
-
-    modifiers = obj.modifiers
-    for modifier in modifiers:
-        if modifier.type == 'SUBSURF':
-            modifier.show_only_control_edges = False
-
-    for o in bpy.context.scene.objects:
-        o.select_set(False)
-
-    obj.select_set(True)
-    bpy.context.view_layer.objects.active = obj
-
-    bpy.ops.object.convert(target='MESH')    
-    
-def apply_shapekey(obj, sk_keep):
-    """ deletes all shapekeys except the one with the given index """
-
-    shapekeys = obj.data.shape_keys.key_blocks
-
-    # check for valid index
-    if sk_keep < 0 or sk_keep > len(shapekeys):
-        return
-
-    # remove all other shapekeys
-    for i in reversed(range(0, len(shapekeys))):
-        if i != sk_keep:
-            obj.shape_key_remove(shapekeys[i])
-
-    # remove the chosen one and bake it into the object
-    obj.shape_key_remove(shapekeys[0])
-    
-def add_objs_shapekeys(destination, sources):
-    """ takes an array of objects and adds them as shapekeys to the destination
-    object """
-    for o in bpy.context.scene.objects:
-        o.select_set(False)
-
-    for src in sources:
-        src.select_set(True)
-
-    bpy.context.view_layer.objects.active = destination
-    bpy.ops.object.join_shapes()
-
-
-def copy_object(obj, times=1, offset=0):
-    """ copies the given object and links it to the main collection"""
-
-    objects = []
-    for i in range(0, times):
-        copy_obj = obj.copy()
-        copy_obj.data = obj.data.copy()
-        copy_obj.name = obj.name + "_shapekey_" + str(i+1)
-        copy_obj.location.x += offset*(i+1)
-
-        bpy.context.collection.objects.link(copy_obj)
-        objects.append(copy_obj)
-
-    return objects   
+   
     
 # Operator to select export folder
 class SelectExportFolderOperator(Operator, ExportHelper):
@@ -220,16 +159,7 @@ class QueryExtensionOperator(Operator):
         export_file_extension = self.user_extension
         bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
         return {'FINISHED'}
-        
-    def apply_modifiers(obj):
-      """ applies all modifiers in order """
-      # now uses object.convert to circumvent errors with disabled modifiers
-
-      modifiers = obj.modifiers
-      for modifier in modifiers:
-          if modifier.type == 'SURFACE_DEFORM':
-            bpy.context.view_layer.objects.active = obj
-            bpy.ops.object.modifier_apply(modifier=modifier.name)
+    
     
 # Operator to backup, apply shapekeys, export, and restore original file
 
@@ -260,19 +190,7 @@ class BackupApplyExportOperator(Operator):
         bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=False)
         self.report({'INFO'}, f"Backup saved: {backup_path}")
 
-        
-        error_count = 0
-        processed_count = 0
         start_time = time.time()
-        
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH' and any(mod.type == 'SURFACE_DEFORM' for mod in obj.modifiers):
-                print(f"Applying Surface Deform to '{obj.name}'...")                
-                result = self.apply_shapekeys(obj)
-            
-        shapekey_time = time.time() - start_time
-        print(f"Shapekeys applied in {shapekey_time:.2f} seconds")
-
         showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a minute or two.")
 
         # Export collections
@@ -282,19 +200,25 @@ class BackupApplyExportOperator(Operator):
         # Pre-calculate which objects to export
         objects_to_export = []
         for collection in bpy.data.collections:
-            set_visible(collection)
             collection_objects = []
             for obj in collection.objects:
                 if obj.type == 'MESH' and obj.name.startswith('submesh_'):
                     collection_objects.append(obj)
             if collection_objects:
-                objects_to_export.append((collection.name, collection_objects))
+                objects_to_export.append((collection, collection_objects))
 
         # Export each collection
-        for collection_name, objs in objects_to_export:
+        for collection, objs in objects_to_export:            
             # Deselect all first
             bpy.ops.object.select_all(action='DESELECT')
+            set_visible(collection)
             
+            # Select objects for this collection
+            for obj in objs:                
+                obj.select_set(True)
+                self.keep_shapekeys(obj)            
+            
+            bpy.ops.object.select_all(action='DESELECT')
             # Select objects for this collection
             for obj in objs:
                 obj.select_set(True)
@@ -302,7 +226,7 @@ class BackupApplyExportOperator(Operator):
             if not objs:
                 continue
 
-            targetPath = os.path.join(folder, f"{collection_name}{file_extension}")
+            targetPath = os.path.join(folder, f"{collection.name}{file_extension}")
             print(f"Exporting: {targetPath}")
             
             export_cyberpunk_glb(
@@ -327,87 +251,53 @@ class BackupApplyExportOperator(Operator):
                  f"Your shapekeys have been applied; {exported_count} collections exported in {total_time:.1f}s!")
         
         return {'FINISHED'}   
-       
+   
         
-    def apply_shapekeys(self, obj):
-        has_shapekeys = obj.data.shape_keys is not None and len(obj.data.shape_keys.key_blocks) > 0
-        modifier = None
-        for _modifier in obj.modifiers:
-            if _modifier.type == 'SURFACE_DEFORM':
-                modifier = _modifier
-
-        if modifier is None:
+    def keep_shapekeys(self, obj):
+        obj.hide_set(False)
+        if obj.data.shape_keys is None or len(obj.data.shape_keys.key_blocks) == 0:
+            print(f"{obj.name} has no shape keys, applying modifiers directly")
+            bpy.context.view_layer.objects.active = obj
+            for mod in obj.modifiers:
+                if mod.type == 'SURFACE_DEFORM':
+                    bpy.ops.object.modifier_apply(modifier=mod.name)
             return {'FINISHED'}
 
-        if not has_shapekeys:
-            print("Object {} has no shapekeys, applying modifiers directly".format(obj.name))
-            apply_modifiers(obj)
+        modifier = next((m for m in obj.modifiers if m.type == 'SURFACE_DEFORM'), None)
+        if not modifier:
             return {'FINISHED'}
 
-        # Get all shape keys including basis
-        shape_keys = obj.data.shape_keys.key_blocks
-
-        # Store original active shape key index
-        original_active_index = obj.active_shape_key_index
-
-        # Process each shape key except basis (index 0)
-        for i in range(1, len(shape_keys)):
-            shape_name = shape_keys[i].name
-
-            # Duplicate object
-            bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
-            bpy.context.view_layer.objects.active = obj
-            bpy.ops.object.duplicate()
-            dup_obj = bpy.context.view_layer.objects.active
-
-            # Remove all shapekeys except the current one
-            dup_obj.shape_key_remove(all=True)
-            # Recreate the basis shapekey (copied from current shape key)
-            dup_obj.shape_key_add(name="Basis")
-            dup_obj.shape_key_add(name=shape_name)
-            # Copy current shape key vertex data into new shape key
-            for i_vertex, coord in enumerate(shape_keys[i].data):
-                dup_obj.data.shape_keys.key_blocks[shape_name].data[i_vertex].co = coord.co.copy()
-
-            # Remove basis key to isolate the shape key as only deformation
-            dup_obj.shape_key_remove(0)
-
-            # Apply the Surface Deform modifier
-            bpy.context.view_layer.objects.active = dup_obj
-            bpy.ops.object.modifier_apply(modifier=modifier.name)
-
-            # Add the resulting mesh as a new shape key on original object
-            # Select original object
-            bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
-            bpy.context.view_layer.objects.active = obj
-
-            new_shape_key = obj.shape_key_add(name=shape_name + "_mod", from_mix=False)
-
-            # Copy the geometry from the duplicate to the new shape key
-            for v in range(len(obj.data.vertices)):
-                new_shape_key.data[v].co = dup_obj.data.vertices[v].co
-
-            # Delete the duplicate
-            bpy.ops.object.select_all(action='DESELECT')
-            dup_obj.select_set(True)
-            bpy.ops.object.delete()
-
-        # Now apply the modifier on the Basis shape key on original object
-        # Remove all shape keys except Basis
-        while len(obj.data.shape_keys.key_blocks) > 1:
-            obj.shape_key_remove(1)
-
-        # Apply Surface Deform modifier on the original mesh
+        # Duplicate object
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        
         bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.duplicate()
+        dup_obj = bpy.context.view_layer.objects.active
+        bpy.ops.object.select_all(action='DESELECT')
+        dup_obj.select_set(True)
+
+        # Apply all shape keys on the duplicate to get fully deformed shape
+        while dup_obj.data.shape_keys and len(dup_obj.data.shape_keys.key_blocks) > 0:
+            dup_obj.shape_key_remove(dup_obj.data.shape_keys.key_blocks[len(dup_obj.data.shape_keys.key_blocks)-1])
+        
+        # Apply the Surface Deform modifier on the deformed duplicate
         bpy.ops.object.modifier_apply(modifier=modifier.name)
-
-        # Basis shape key is now modified mesh base.
-
-        # Restore original active shape key index if applicable
-        if original_active_index < len(obj.data.shape_keys.key_blocks):
-            obj.active_shape_key_index = original_active_index
+        
+        
+        bpy.ops.object.select_all(action='DESELECT')        
+        obj.select_set(True)
+        
+        # Calculate offset between duplicate verts and original basis shape key verts
+        basis_key = obj.data.shape_keys.key_blocks[0]
+        for v, d_v in zip(basis_key.data, dup_obj.data.vertices):
+            offset = d_v.co - v.co
+            v.co += offset  # Update original basis shape key coords by offsetting
+        
+        # Delete duplicate object
+        bpy.ops.object.select_all(action='DESELECT')
+        dup_obj.select_set(True)
+        bpy.ops.object.delete()
 
         return {'FINISHED'}
     
