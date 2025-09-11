@@ -50,11 +50,14 @@ def detect_extension(folder):
         
         if not full_name:
             continue
+        parts = full_name.split('.', 1)
+        if len(parts) <= 1:
+            continue
 
-        file_name, file_ext = os.path.splitext(full_name)
-        extensions.add(file_ext)        
+        extensions.add(parts[1])
     
-    if ".morphtarget.glb" in extensions:
+    print(extensions)
+    if "morphtarget.glb" in extensions:
         return ".morphtarget.glb"
 
     if len(extensions) == 1:
@@ -134,7 +137,7 @@ class QueryExtensionOperator(Operator):
 
         # Multiple or no extensions found, prompt user
         ret = context.window_manager.invoke_props_diaprint(self)
-        if ret == {'FINISHED'}:
+        if ret == {'FINISHED'} and user_extension != ".glb":
             export_file_extension = user_extension
         return ret
 
@@ -207,6 +210,8 @@ class BackupApplyExportOperator(Operator):
             if collection_objects:
                 objects_to_export.append((collection, collection_objects))
 
+        current_mode = bpy.context.mode
+        bpy.ops.object.mode_set(mode='OBJECT')
         # Export each collection
         for collection, objs in objects_to_export:            
             # Deselect all first
@@ -247,8 +252,14 @@ class BackupApplyExportOperator(Operator):
         self.report({'INFO'}, "Restored original file.")
 
         total_time = time.time() - start_time
+        
+        try:
+            bpy.ops.object.mode_set(mode=current_mode)
+        except:
+            pass
         showPopup('Shapekeys applied :)', 
                  f"Your shapekeys have been applied; {exported_count} collections exported in {total_time:.1f}s!")
+        
         
         return {'FINISHED'}   
    
