@@ -16,9 +16,6 @@ import time
 # 7. Open the original file from step 3
 
 
-# Shapekey application logic ruthlessly stolen from SKKeeper: https://github.com/smokejohn/SKkeeper
-# Thank you! <3 
-
 original_path = ""
 export_folder = ""
 export_file_extension = ""
@@ -223,7 +220,16 @@ class QueryExtensionOperator(Operator):
         export_file_extension = self.user_extension
         bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
         return {'FINISHED'}
+        
+    def apply_modifiers(obj):
+      """ applies all modifiers in order """
+      # now uses object.convert to circumvent errors with disabled modifiers
 
+      modifiers = obj.modifiers
+      for modifier in modifiers:
+          if modifier.type == 'SURFACE_DEFORM':
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
     
 # Operator to backup, apply shapekeys, export, and restore original file
 
@@ -262,17 +268,7 @@ class BackupApplyExportOperator(Operator):
         for obj in bpy.data.objects:
             if obj.type == 'MESH' and any(mod.type == 'SURFACE_DEFORM' for mod in obj.modifiers):
                 print(f"Applying Surface Deform to '{obj.name}'...")                
-                try:
-                    result = self.keep_shapekeys(obj)
-                    if result == {'CANCELLED'}:
-                        print("Error processing {}".format(obj.name))
-                        error_count += 1
-                    else:
-                        print("Successfully processed {}".format(obj.name))
-                        processed_count += 1
-                except Exception as e:
-                    print("Exception processing {}: {}".format(obj.name, str(e)))
-            error_count += 1
+                result = self.apply_shapekeys(obj)
             
         shapekey_time = time.time() - start_time
         print(f"Shapekeys applied in {shapekey_time:.2f} seconds")
@@ -332,136 +328,86 @@ class BackupApplyExportOperator(Operator):
         
         return {'FINISHED'}   
        
-    def apply_modifier(obj, modifier_name):
-        """ applies a specific modifier """
-
-        print("Applying chosen modifier")
-
-        modifier = [mod for mod in obj.modifiers if mod.name == modifier_name][0]
-
-        # deselect all
-        for o in bpy.context.scene.objects:
-            o.select_set(False)
-
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.modifier_apply(modifier=modifier.name)
-         
-    def apply_modifiers(obj):
-        """ applies all modifiers in order """
-        # now uses object.convert to circumvent errors with disabled modifiers
-
-        modifiers = obj.modifiers
-        for modifier in modifiers:
-            if modifier.type == 'SURFACE_DEFORM':
-                apply_modifier(obj, modifier.name)
-
         
-    def keep_shapekeys(self, obj):
-        """
-        Function which is used by the blender operators to collapse modifier
-        stack and keep shapekeys.
-        """
+    def apply_shapekeys(self, obj):
+        has_shapekeys = obj.data.shape_keys is not None and len(obj.data.shape_keys.key_blocks) > 0
+        modifier = None
+        for _modifier in obj.modifiers:
+            if _modifier.type == 'SURFACE_DEFORM':
+                modifier = _modifier
 
-        # Check if the object has shapekeys
-        has_shapekeys = obj.data.shape_keys is not None and len(
-            obj.data.shape_keys.key_blocks) > 0
+        if modifier is None:
+            return {'FINISHED'}
 
         if not has_shapekeys:
-            # Apply modifiers directly if no shapekeys to preserve
             print("Object {} has no shapekeys, applying modifiers directly".format(obj.name))
             apply_modifiers(obj)
             return {'FINISHED'}
 
-        shapekey_names = [
-            block.name for block in obj.data.shape_keys.key_blocks]
+        # Get all shape keys including basis
+        shape_keys = obj.data.shape_keys.key_blocks
 
-        # create receiving object that will contain all collapsed shapekeys
-        receiver = copy_object(obj, times=1, offset=0)[0]
-        receiver.name = "shapekey_receiver"
-        apply_shapekey(receiver, 0)
-        apply_modifiers(receiver)
-        
-        num_shapekeys = len(obj.data.shape_keys.key_blocks)
+        # Store original active shape key index
+        original_active_index = obj.active_shape_key_index
 
-        shapekeys_to_process = len(shapekey_names) - 1
-        print("Processing {} shapekeys on {}".format(
-            shapekeys_to_process, obj.name))
+        # Process each shape key except basis (index 0)
+        for i in range(1, len(shape_keys)):
+            shape_name = shape_keys[i].name
 
-        # create a copy for each shapekey and transfer it to the receiver one after the other
-        # start the loop at 1 so we skip the base shapekey
-        for shapekey_index in range(1, num_shapekeys):
-            print("Processing shapekey {} with name {}".format(
-                shapekey_index, shapekey_names[shapekey_index]))
+            # Duplicate object
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
+            bpy.ops.object.duplicate()
+            dup_obj = bpy.context.view_layer.objects.active
 
-            # copy of baseobject / shapekey donor
-            shapekey_obj = copy_object(obj, times=1, offset=0)[0]
-            apply_shapekey(shapekey_obj, shapekey_index)
-            apply_modifiers(shapekey_obj)
-            
-            # add the copy as a shapekey to the receiver
-            add_objs_shapekeys(receiver, [shapekey_obj])
+            # Remove all shapekeys except the current one
+            dup_obj.shape_key_remove(all=True)
+            # Recreate the basis shapekey (copied from current shape key)
+            dup_obj.shape_key_add(name="Basis")
+            dup_obj.shape_key_add(name=shape_name)
+            # Copy current shape key vertex data into new shape key
+            for i_vertex, coord in enumerate(shape_keys[i].data):
+                dup_obj.data.shape_keys.key_blocks[shape_name].data[i_vertex].co = coord.co.copy()
 
-            # check if the shapekey could be added
-            # due to problematic modifier stack
-            help_url = "https://github.com/smokejohn/SKkeeper/blob/master/readme.md#troubleshooting-problems"
-            if receiver.data.shape_keys is None:
-                error_msg = ("IMPOSSIBLE TO TRANSFER SHAPEKEY BECAUSE OF VERTEX COUNT MISMATCH\n\n"
-                             "The processed shapekey {} with name {} cannot be transferred.\n"
-                             "The shapekey doesn't have the same vertex count as the base after applying modifiers.\n"
-                             "This is most likely due to a problematic modifier in your modifier stack (Decimate, Weld)\n\n"
-                             "For help on how to fix problems visit: {}).\n\n"
-                             "Press UNDO to return to your previous working state."
-                             )
-                self.report({'ERROR'}, error_msg.format(
-                    shapekey_index, shapekey_names[shapekey_index], help_url))
-                return {'CANCELLED'}
+            # Remove basis key to isolate the shape key as only deformation
+            dup_obj.shape_key_remove(0)
 
-            # due to problematic shape key
-            num_transferred_keys = len(receiver.data.shape_keys.key_blocks) - 1
-            if num_transferred_keys != shapekey_index:
-                error_msg = ("IMPOSSIBLE TO TRANSFER SHAPEKEY BECAUSE OF VERTEX COUNT MISMATCH\n\n"
-                             "The processed shapekey {} with name {} cannot be transferred.\n"
-                             "The shapekey doesn't have the same vertex count as the base after applying modifiers.\n"
-                             "For help on how to fix problems visit: {}).\n\n"
-                             "Press UNDO to return to your previous working state."
-                             )
-                self.report({'ERROR'}, error_msg.format(
-                    shapekey_index, shapekey_names[shapekey_index], help_url))
-                return {'CANCELLED'}
+            # Apply the Surface Deform modifier
+            bpy.context.view_layer.objects.active = dup_obj
+            bpy.ops.object.modifier_apply(modifier=modifier.name)
 
-            # restore the shapekey name
-            receiver.data.shape_keys.key_blocks[shapekey_index].name = shapekey_names[shapekey_index]
+            # Add the resulting mesh as a new shape key on original object
+            # Select original object
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            bpy.context.view_layer.objects.active = obj
 
-            # delete the shapekey donor and its mesh datablock (save memory)
-            mesh_data = shapekey_obj.data
-            bpy.data.objects.remove(shapekey_obj)
-            bpy.data.meshes.remove(mesh_data)
+            new_shape_key = obj.shape_key_add(name=shape_name + "_mod", from_mix=False)
 
-        orig_name = obj.name
-        orig_data = obj.data
+            # Copy the geometry from the duplicate to the new shape key
+            for v in range(len(obj.data.vertices)):
+                new_shape_key.data[v].co = dup_obj.data.vertices[v].co
 
-        # transfer over drivers on shapekeys if they exist
-        if orig_data.shape_keys.animation_data is not None:
-            receiver.data.shape_keys.animation_data_create()
-            for orig_driver in orig_data.shape_keys.animation_data.drivers:
-                receiver.data.shape_keys.animation_data.drivers.from_existing(
-                    src_driver=orig_driver)
+            # Delete the duplicate
+            bpy.ops.object.select_all(action='DESELECT')
+            dup_obj.select_set(True)
+            bpy.ops.object.delete()
 
-            # if the driver has variable targets that refer to the original object
-            # we need to retarget them to the new receiver because we delete the
-            # original object later
-            for fcurve in receiver.data.shape_keys.animation_data.drivers:
-                for variable in fcurve.driver.variables:
-                    for target in variable.targets:
-                        if target.id == obj:
-                            target.id = receiver
+        # Now apply the modifier on the Basis shape key on original object
+        # Remove all shape keys except Basis
+        while len(obj.data.shape_keys.key_blocks) > 1:
+            obj.shape_key_remove(1)
 
-        # delete the original and its mesh data
-        bpy.data.objects.remove(obj)
-        bpy.data.meshes.remove(orig_data)
+        # Apply Surface Deform modifier on the original mesh
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(modifier=modifier.name)
 
-        # rename the receiver
-        receiver.name = orig_name
+        # Basis shape key is now modified mesh base.
+
+        # Restore original active shape key index if applicable
+        if original_active_index < len(obj.data.shape_keys.key_blocks):
+            obj.active_shape_key_index = original_active_index
 
         return {'FINISHED'}
     
