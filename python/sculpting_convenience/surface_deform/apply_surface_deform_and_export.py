@@ -187,7 +187,7 @@ class BackupApplyExportOperator(Operator):
         backup_path = original_path.rsplit(".", 1)[0] + "_EXPORT_TEMP.blend"
 
         # Save copy to backup path
-        bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=True)
+        bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=False)
         self.report({'INFO'}, f"Backup saved: {backup_path}")
 
         showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a minute or two.")
