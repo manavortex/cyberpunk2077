@@ -6,12 +6,12 @@ You can find detailed step-by-step documentation [on the Cyberpunk2077 modding w
 1. Create a duplicate of your base mesh (the one you want to deform)
 2. Give it a unique name (something like `sculptme`)
 3. Make sure this is the only selected mesh in object mode
-4. Make sure that every other mesh is **visible**
+4. Make sure that every mesh you want to affect is **visible**
 5. Run [add_surface_deform.py](https://github.com/manavortex/cyberpunk2077/python/sculpting_convenience/surface_deform/add_surface_deform.py)
 
-This will apply a surface deform modifier to **every other mesh** and bind it to the object you have selected (your `sculptme` mesh)
+This will apply a surface deform modifier to **every visible mesh** and bind it to the object you have selected (your `sculptme` mesh)
 
-Now, you can sculpt your dedicated mesh at your heart's content.
+Now, you can hide everything else and sculpt/edit away.
 
 ## How to export
 
