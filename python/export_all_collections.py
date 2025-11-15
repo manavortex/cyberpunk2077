@@ -85,7 +85,7 @@ class SelectFolderOperator(Operator, ExportHelper):
                 export_poses=False,
                 export_visible=False,
                 limit_selected=True,
-                static_prop=False
+                is_skinned=True
             )
             successful_count = successful_count + 1
             self.report({'INFO'}, f"Exported {collection.name}")
