@@ -239,8 +239,7 @@ class BackupApplyExportOperator(Operator):
                 targetPath,
                 export_poses=False,
                 export_visible=False,
-                limit_selected=True,
-                static_prop=False
+                limit_selected=True
             )
             exported_count += 1
 
