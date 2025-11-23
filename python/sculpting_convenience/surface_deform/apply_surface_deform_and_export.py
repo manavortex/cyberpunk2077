@@ -136,7 +136,7 @@ class QueryExtensionOperator(Operator):
 
 
         # Multiple or no extensions found, prompt user
-        ret = context.window_manager.invoke_props_diaprint(self)
+        ret = context.window_manager.invoke_props_dialog(self)
         if ret == {'FINISHED'} and user_extension != ".glb":
             export_file_extension = user_extension
         return ret
@@ -155,7 +155,7 @@ class QueryExtensionOperator(Operator):
 
     def invoke(self, context, event):
         # Overriding invoke to ensure proper dialog use
-        result = context.window_manager.invoke_props_diaprint(self)
+        result = context.window_manager.invoke_props_dialog(self)
         return result
 
     def execute(self, context):
