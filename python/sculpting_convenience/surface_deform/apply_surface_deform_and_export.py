@@ -213,7 +213,10 @@ class BackupApplyExportOperator(Operator):
         current_mode = bpy.context.mode
         bpy.ops.object.mode_set(mode='OBJECT')
         # Export each collection
-        for collection, objs in objects_to_export:            
+        for collection, objs in objects_to_export:    
+                        
+            if not objs or len(objs) == 0:
+                continue        
             # Deselect all first
             bpy.ops.object.select_all(action='DESELECT')
             set_visible(collection)
@@ -227,9 +230,7 @@ class BackupApplyExportOperator(Operator):
             # Select objects for this collection
             for obj in objs:
                 obj.select_set(True)
-            
-            if not objs:
-                continue
+
 
             targetPath = os.path.join(folder, f"{collection.name}{file_extension}")
             print(f"Exporting: {targetPath}")
@@ -265,7 +266,7 @@ class BackupApplyExportOperator(Operator):
         
     def keep_shapekeys(self, obj):
         obj.hide_set(False)
-        if obj.data.shape_keys is None or len(obj.data.shape_keys.key_blocks) == 0:
+        if obj.data.shape_keys is None or obj.data.shape_keys.key_blocks is None or len(obj.data.shape_keys.key_blocks) == 0:
             print(f"{obj.name} has no shape keys, applying modifiers directly")
             bpy.context.view_layer.objects.active = obj
             for mod in obj.modifiers:
@@ -298,6 +299,8 @@ class BackupApplyExportOperator(Operator):
         bpy.ops.object.select_all(action='DESELECT')        
         obj.select_set(True)
         
+        if obj.data.shape_keys is None or obj.data.shape_keys.key_blocks is None or len(obj.data.shape_keys.key_blocks) is 0:
+            return {'FINISHED'}
         # Calculate offset between duplicate verts and original basis shape key verts
         basis_key = obj.data.shape_keys.key_blocks[0]
         for v, d_v in zip(basis_key.data, dup_obj.data.vertices):
