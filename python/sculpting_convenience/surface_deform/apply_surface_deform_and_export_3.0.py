@@ -1,12 +1,15 @@
-# requires export_cyberpunk_collections, which is implemented in blender addon, but not yet released
-
 import bpy
 import os
 from bpy.props import StringProperty, EnumProperty
 from bpy.types import Operator
 from bpy_extras.io_utils import ExportHelper
 from i_scene_cp77_gltf.exporters.glb_export import export_cyberpunk_collections_glb
+from i_scene_cp77_gltf.meshtools.verttools import del_empty_vgroup
 import time
+
+# ==================== Set to False if you want to keep all vertex groups, even if they aren't used ====================
+delete_unused_vertex_groups = True
+
 
 # This script will do the following things:
 # 1. Select an export folder
@@ -17,6 +20,8 @@ import time
 # 6. Export all collections to the folder from step 1 (only meshes starting with "submesh_" will be considered
 # 7. Open the original file from step 3
 
+
+# ==================== Do not edit below this line unless you know what you're doing or want to FAFO ====================
 
 original_path = ""
 export_folder = "",
@@ -35,39 +40,7 @@ def showPopup(title, message_):
         windll.user32.MessageBoxW(None, message_, title, 1)
     except:
         # Fallback no-op or Blender custom message fallback
-        print(f"{title}: {message_}")
-
-
-def detect_extension(folder):
-    if not folder or not os.path.isdir(folder):
-        raise ValueError("Export folder invalid")
-     
-    files = os.listdir(folder) 
-
-    # Detect extensions for all collections
-    extensions = set()
-    for coll in bpy.data.collections:        
-        full_name = ([f for f in files if f.startswith(coll.name)] or [None])[0]
-        
-        if not full_name:
-            continue
-        parts = full_name.split('.', 1)
-        if len(parts) <= 1:
-            continue
-
-        extensions.add(parts[1])
-    
-    print(extensions)
-    if "morphtarget.glb" in extensions:
-        return ".morphtarget.glb"
-
-    if len(extensions) == 1:
-        # All matched the same extension: use it
-        return extensions.pop()
-    
-    # Query file exception
-    bpy.ops.wm.query_extension('INVOKE_DEFAULT')
-    
+        print(f"{title}: {message_}")    
    
     
 # Operator to select export folder
@@ -109,6 +82,7 @@ class BackupApplyExportOperator(Operator):
     def execute(self, context):
         global original_path
         global export_folder
+        global delete_unused_vertex_groups
         
         wm = context.window_manager
         original_path = bpy.data.filepath
@@ -125,7 +99,6 @@ class BackupApplyExportOperator(Operator):
         # Save copy to backup path
         bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=False)
         self.report({'INFO'}, f"Backup saved: {backup_path}")
-
          
         bpy.ops.object.mode_set(mode='OBJECT')
         # Export each collection
@@ -142,7 +115,9 @@ class BackupApplyExportOperator(Operator):
                 if obj.type == 'ARMATURE' or (obj.type == 'MESH' and not obj.name.startswith('submesh_')):
                     continue
                 obj.select_set(True)
-                self.keep_shapekeys(obj)            
+                self.keep_shapekeys(obj)  
+                if delete_unused_vertex_groups and context.object == obj:
+                    del_empty_vgroup(context)          
 
         bpy.ops.object.select_all(action='DESELECT')
         
