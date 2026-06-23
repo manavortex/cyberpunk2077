@@ -3,8 +3,15 @@ import bpy
 # you have sculpted a mesh and now want to re-shape the original with all the shapekeys? Don't worry, here you go!
 # This _requires_ the vertices to be identical! You can sculpt all you like, but you can't change the vertex count or -order!
 
-original_mesh_name = 'OriginalMesh'
-resculpted_mesh_name = 'ResculptMesh'
+# You need to have THREE meshes visible: 
+# an ORIGINAL head mesh as exported from game
+# your ALREADY SCULPTED head mesh
+# and the new "sculptme" mesh that will perpetuate your changes to all your other meshes
+
+# everything else in your blend file MUST BE HIDDEN (or Blender will freeze and eventually crash)
+
+original_mesh_name = 'BaseHeadFreshFromGame'
+resculpted_mesh_name = 'BaseHeadWithYourSculpts'
 
 apply_deforms_to_visible_objects = True
 
