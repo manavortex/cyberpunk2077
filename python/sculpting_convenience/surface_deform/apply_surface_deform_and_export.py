@@ -17,8 +17,8 @@ import time
 
 
 original_path = ""
-export_folder = "",
-export_file_extension = ""
+export_folder = ""
+export_file_extension = ".morphtarget.glb"
 
 # Helper to set collections visible (recursive)
 def set_visible(coll):
@@ -92,75 +92,11 @@ class SelectExportFolderOperator(Operator, ExportHelper):
 
         # Store selected folder globally for next operator usage
         export_folder = folder
-
-        try:
-           export_file_extension = detect_extension(folder)
-        except Exception as exception:
-            self.report({'ERROR'}, "Exception message: {}".format(exception))
-            return { 'CANCELLED' }
-
-        if not export_file_extension:
-            self.report({'ERROR'}, "No file extension")
-            return { 'CANCELLED' }            
-               
-        if not export_file_extension.startswith("."):
-            export_file_extension = "." + export_file_extension         
          
         # Proceed to apply shapekeys and export
         return bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
 
 
-# Operator to detect or query file extension
-class QueryExtensionOperator(Operator):
-    bl_idname = "wm.query_extension"
-    bl_label = "Detect or Query File Extension"
-
-    user_extension: StringProperty(
-        name="File Extension",
-        description="Specify file extension for export (include dot, e.g. .glb)",
-        default=".glb"
-    )
-
-    def execute(self, context):
-        global original_path
-        global export_file_extension
-        global export_folder
-        
-        folder = export_folder
-        if not folder or not os.path.isdir(folder):
-            self.report({'ERROR'}, "Export folder not set or invalid.")
-            return {'CANCELLED'}
-
-
-        # Multiple or no extensions found, prompt user
-        ret = context.window_manager.invoke_props_dialog(self)
-        if ret == {'FINISHED'} and user_extension != ".glb":
-            export_file_extension = user_extension
-        return ret
-
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="Please enter file extension (with leading .)")
-        layout.prop(self, "user_extension", text="File extension to use")
-
-    def cancel(self, context):
-        pass
-
-    def modal(self, context, event):
-        return {'PASS_THROUGH'}
-
-    def invoke(self, context, event):
-        # Overriding invoke to ensure proper dialog use
-        result = context.window_manager.invoke_props_dialog(self)
-        return result
-
-    def execute(self, context):
-        export_file_extension = self.user_extension
-        bpy.ops.wm.backup_apply_export('INVOKE_DEFAULT')
-        return {'FINISHED'}
-    
-    
 # Operator to backup, apply shapekeys, export, and restore original file
 
 class BackupApplyExportOperator(Operator):
@@ -321,12 +257,10 @@ class BackupApplyExportOperator(Operator):
     
 def register():
     bpy.utils.register_class(SelectExportFolderOperator)
-    bpy.utils.register_class(QueryExtensionOperator)
     bpy.utils.register_class(BackupApplyExportOperator)
 
 def unregister():
     bpy.utils.unregister_class(BackupApplyExportOperator)
-    bpy.utils.unregister_class(QueryExtensionOperator)
     bpy.utils.unregister_class(SelectExportFolderOperator)
     
 # ------------ main: run -------------
