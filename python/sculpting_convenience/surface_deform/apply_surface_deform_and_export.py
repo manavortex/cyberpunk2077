@@ -183,15 +183,25 @@ class BackupApplyExportOperator(Operator):
         if not folder or not os.path.isdir(folder):
             self.report({'ERROR'}, "Export folder not set or invalid.")
             return {'CANCELLED'}
+        if len(bpy.data.objects) == 0:
+            self.report({'ERROR'}, "No active objects in selection")
+            return {'CANCELLED'}
 
         backup_path = original_path.rsplit(".", 1)[0] + "_EXPORT_TEMP.blend"
 
         # Save copy to backup path
         bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=False)
-        self.report({'INFO'}, f"Backup saved: {backup_path}")
+        self.report({'INFO'}, f"Backup saved: {backup_path}")        
+        
+        # need to set active object, or switching modes will complain
+        bpy.ops.object.select_all(action='DESELECT')
+        if not bpy.context.view_layer.objects.active:
+            bpy.context.view_layer.objects.active = bpy.data.objects[0]
+        current_mode = bpy.context.mode
+        bpy.ops.object.mode_set(mode='OBJECT')
 
         start_time = time.time()
-        showPopup("Exporting collections", "Exporting collections - Blender will be unresponsive for a minute or two.")
+        showPopup("Exporting collections", f"Exporting collections to {file_extension} - Blender will be unresponsive for a minute or two.")
 
         # Export collections
         exported_count = 0
@@ -207,8 +217,7 @@ class BackupApplyExportOperator(Operator):
             if collection_objects:
                 objects_to_export.append((collection, collection_objects))
 
-        current_mode = bpy.context.mode
-        bpy.ops.object.mode_set(mode='OBJECT')
+        
         # Export each collection
         for collection, objs in objects_to_export:    
                         
