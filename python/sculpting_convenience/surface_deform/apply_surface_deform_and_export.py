@@ -231,7 +231,7 @@ class BackupApplyExportOperator(Operator):
             for obj in objs:
                 obj.select_set(True)
 
-            if file_extension == ".glb" && ""__morphs" in collection.name:
+            if file_extension == ".glb" and ""__morphs" in collection.name:
                 file_extension = ".morphtarget.glb"
             targetPath = os.path.join(folder, f"{collection.name}{file_extension}")
             print(f"Exporting: {targetPath}")
