@@ -2,11 +2,15 @@ import bpy
 
 # you have sculpted a mesh and now want to re-shape the original with all the shapekeys? Don't worry, here you go!
 # This _requires_ the vertices to be identical! You can sculpt all you like, but you can't change the vertex count or -order!
-
-# You need to have THREE meshes visible: 
+ 
+# FIRST, import all morphtargets, then DUPLICATE the base head mesh, and name the duplicate "sculptme"
+# SECOND, apply surface deforms - every mesh must be bound to sculptme (https://github.com/manavortex/cyberpunk2077/blob/master/python/sculpting_convenience/surface_deform/add_surface_deform.py)
+# THIRD, import your already-sculpted head mesh
+# 
+# Before running this script, you need to have THREE meshes visible: 
 # an ORIGINAL head mesh as exported from game
 # your ALREADY SCULPTED head mesh
-# and the new "sculptme" mesh that will perpetuate your changes to all your other meshes
+# and the new "sculptme" mesh that will perpetuate your changes to all your other meshes via surface deform
 
 # everything else in your blend file MUST BE HIDDEN (or Blender will freeze and eventually crash)
 
