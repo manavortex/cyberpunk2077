@@ -46,15 +46,12 @@ def detect_extension(folder):
     # Detect extensions for all collections
     extensions = set()
     for coll in bpy.data.collections:        
-        full_name = ([f for f in files if f.startswith(coll.name)] or [None])[0]
+        full_name = ([f for f in files if f.startswith(coll.name)] or [None])[0]        
+        if not full_name or not '.' in full_name:
+            continue
         
-        if not full_name:
-            continue
-        parts = full_name.split('.', 1)
-        if len(parts) <= 1:
-            continue
-
-        extensions.add(parts[1])
+        extension = full_name[full_name.index('.'):]        
+        extensions.add(extension)
     
     print(extensions)
     if "morphtarget.glb" in extensions:
@@ -231,8 +228,6 @@ class BackupApplyExportOperator(Operator):
             for obj in objs:
                 obj.select_set(True)
 
-            if file_extension == ".glb" and ""__morphs" in collection.name:
-                file_extension = ".morphtarget.glb"
             targetPath = os.path.join(folder, f"{collection.name}{file_extension}")
             print(f"Exporting: {targetPath}")
             
