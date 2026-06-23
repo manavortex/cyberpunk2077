@@ -8,7 +8,7 @@ import time
 
 # This script will do the following things:
 # 1. Select an export folder
-# 2. Ask you for a file extension (.glb for meshes, .morphtarget.glb otherwise)
+# 2. Find the correct file extension (.morphtarget.glb if any of those is in the destination folder)
 # 3. Save your file
 # 4. Switch to a backup file
 # 5. Apply shapekeys (destructively)
