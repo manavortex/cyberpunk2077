@@ -7,8 +7,8 @@ import bpy
 # SECOND, apply surface deforms - every mesh must be bound to sculptme (https://github.com/manavortex/cyberpunk2077/blob/master/python/sculpting_convenience/surface_deform/add_surface_deform.py)
 # THIRD, import your already-sculpted head mesh
 # 
-# In the OUTLINER (top right), SELECT (click on) your "sculptme" mesh
-# Then, hold CTRL and click on the already-sculpted head
+# In the OUTLINER (top right), SELECT (click on) your already-sculpted head (the SOURCE)
+# Then, hold CTRL and click on the "sculptme" mesh (the TARGET)
 #
 # Afterwards, just click play
 
