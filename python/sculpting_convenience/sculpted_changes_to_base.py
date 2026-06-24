@@ -7,80 +7,121 @@ import bpy
 # SECOND, apply surface deforms - every mesh must be bound to sculptme (https://github.com/manavortex/cyberpunk2077/blob/master/python/sculpting_convenience/surface_deform/add_surface_deform.py)
 # THIRD, import your already-sculpted head mesh
 # 
-# Before running this script, you need to have THREE meshes visible: 
-# an ORIGINAL head mesh as exported from game
-# your ALREADY SCULPTED head mesh
-# and the new "sculptme" mesh that will perpetuate your changes to all your other meshes via surface deform
+# In the OUTLINER (top right), SELECT (click on) your "sculptme" mesh
+# Then, hold CTRL and click on the already-sculpted head
+#
+# Afterwards, just click play
 
-# everything else in your blend file MUST BE HIDDEN (or Blender will freeze and eventually crash)
+# Info popup
+def showPopup(title, message_):
+    try:
+        from ctypes import windll
+        windll.user32.MessageBoxW(None, message_, title, 1)
+    except:
+        # Fallback no-op or Blender custom message fallback
+        print(f"{title}: {message_}")
 
-original_mesh_name = 'BaseHeadFreshFromGame'
-resculpted_mesh_name = 'BaseHeadWithYourSculpts'
+def select_basis_shapekey(mesh):
+    shape_key_name = "Basis"
+    if not mesh.data.shape_keys.key_blocks:
+        mesh.shape_key_add(name=shape_key_name)
+        return
+    shape_key = mesh.data.shape_keys.key_blocks[shape_key_name]
+    mesh.active_shape_key_index = list(mesh.data.shape_keys.key_blocks).index(shape_key)
+ 
+"""Return the vertex data of the Basis shapekey, or fallback to mesh vertices."""
+def get_basis_vertices(mesh):
+    select_basis_shapekey(mesh)
+    if mesh.type != 'MESH':
+        return None
+    if mesh.data.shape_keys and "Basis" in mesh.data.shape_keys.key_blocks:
+        return mesh.data.shape_keys.key_blocks["Basis"].data
+    return mesh.data.vertices
 
-apply_deforms_to_visible_objects = True
 
-def get_vertex_offsets(original_mesh, resculpt_mesh):
-    offsets = []
-
+def get_vertex_offsets(mesh_without_sculpts, mesh_with_sculpts):
+    
+    basis_orig = get_basis_vertices(mesh_without_sculpts)
+    basis_sculpt = get_basis_vertices(mesh_with_sculpts)
+    
     # Ensure both meshes have the same number of vertices
-    if len(original_mesh.data.vertices) != len(resculpt_mesh.data.vertices):
-        print("The vertex counts of the original and re-sculpted meshes don't match.")
+    if len(basis_orig) != len(basis_sculpt):
+        showPopup("Vertex count error", "The vertex counts of the original and re-sculpted meshes don't match.")
         return None
 
-    # Calculate the offsets
-    for i, v_orig in enumerate(original_mesh.data.vertices):
-        v_resculpt = resculpt_mesh.data.vertices[i]
-        offset = v_resculpt.co - v_orig.co
+    offsets = []
+    for i in range(len(basis_orig)):
+        offset = basis_sculpt[i].co - basis_orig[i].co
         offsets.append(offset)
-
+        
     return offsets
 
 def apply_vertex_offsets_to_mesh(mesh, offsets):
     # Ensure we're in object mode
     bpy.context.view_layer.objects.active = mesh
     bpy.ops.object.mode_set(mode='OBJECT')
+    
+    shape_key_name = "Deform"        
 
-    # Duplicate the mesh to preserve the original
-    deformed_mesh = mesh.copy()
-    deformed_mesh.data = mesh.data.copy()
-    bpy.context.collection.objects.link(deformed_mesh)
+    try:
+        shape_key = mesh.data.shape_keys.key_blocks[shape_key_name]
+        mesh.shape_key_remove(shape_key)
+    except:
+        print("No shape key to delete :)")        
 
-    # Create a new shapekey if the mesh doesn't have any
-    if not deformed_mesh.data.shape_keys:
-        deformed_mesh.shape_key_add(name="Basis")
-
-    shape_key = deformed_mesh.shape_key_add(name="Deform")
+    shape_key = mesh.shape_key_add(name=shape_key_name)
+    shape_key.value = 1.0
 
     # Apply the offsets to the mesh's shape key
-    for i, vert in enumerate(deformed_mesh.data.vertices):
-        if i < len(offsets):
-            shape_key.data[i].co += offsets[i]
+    for i, vert in enumerate(mesh.data.vertices):
+        if i >= len(offsets):
+            break    
+        shape_key.data[i].co += offsets[i]
+            
+def has_surface_deform_bound_to(target_obj):
+    if target_obj is None:
+        return False
 
-    return deformed_mesh
+    for obj in (x for x in bpy.data.objects if x.type == "MESH"):
+        for mod in obj.modifiers:
+            if mod.type == 'SURFACE_DEFORM' and mod.target == target_obj:
+                return True
+    return False
 
-# Apply the offsets to all visible meshes
-def apply_to_visible_meshes(offsets, original_mesh, resculpt_mesh):
-    if apply_deforms_to_visible_objects != True:
-        return
-
-    for mesh in bpy.context.view_layer.objects:
-        if mesh.type == 'MESH' and mesh.name not in [original_mesh.name, resculpt_mesh.name] and mesh.visible_get():
-            deformed_mesh = apply_vertex_offsets_to_mesh(mesh, offsets)
-            print(f"Applied offsets to {deformed_mesh.name}")
 
 def main():
-    original_mesh = bpy.data.objects.get(original_mesh_name)  # Replace with your original mesh name
-    resculpt_mesh = bpy.data.objects.get(resculpted_mesh_name)  # Replace with your re-sculpted mesh name
-
-    if original_mesh is None or resculpt_mesh is None:
-        print("Original or resculpted mesh not found!")
+    
+    if len(bpy.context.selected_objects) != 2:
+        showPopup("Invalid selection", "Please select first the original head, and then your sculpted head")
         return
-
-    offsets = get_vertex_offsets(original_mesh, resculpt_mesh)
+    
+    active_mesh = bpy.context.view_layer.objects.active
+    selected_mesh = next(x for x in bpy.context.selected_objects if x.type == "MESH" and x != active_mesh)
+    
+    if active_mesh is None or selected_mesh is None:
+        showPopup("Invalid selection", "Selection mesh names not found")            
+            
+    mesh_without_sculpts = bpy.data.objects.get(active_mesh.name)
+    mesh_with_sculpts = bpy.data.objects.get(selected_mesh.name)  # the mesh that already has the correct shape
+    
+    if mesh_without_sculpts is None or mesh_with_sculpts is None:    
+        showPopup("Invalid selection", "Failed to retrieve meshes from your selection")
+        return
+   
+    # check if the resculpt_mesh has a surface_deform
+    if any(m.type == "SURFACE_DEFORM" for m in mesh_with_sculpts.modifiers):
+        showPopup("Invalid modifier", f"Please delete the surface deform modifier from {mesh_with_sculpts.name}")
+        return
+    
+    offsets = get_vertex_offsets(mesh_without_sculpts, mesh_with_sculpts)
     if offsets is None:
+        showPopup("No offsets found", "Failed to find mesh offsets")
         return
+    
+    if not has_surface_deform_bound_to(mesh_without_sculpts):
+        showPopup("Surface Deform missing", "Your target mesh doesn't seem to have any surface deform modifiers bound to it. Apply them via script first, or click 'OK' to proceed anyway.")
 
-    apply_to_visible_meshes(offsets, original_mesh, resculpt_mesh)
+    apply_vertex_offsets_to_mesh(mesh_without_sculpts, offsets)
 
 if __name__ == "__main__":
     main()
