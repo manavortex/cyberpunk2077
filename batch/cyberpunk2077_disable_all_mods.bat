@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 REM ===================================================================================================================
 REM helper script for troubleshooting: https://wiki.redmodding.org/cyberpunk-2077-modding/help/users-troubleshooting
-REM Up-to-date with 2.12a, don't expect it to break though
+REM Up-to-date with 2.5, don't expect it to break though
 REM -------------------------------------------------------------------------------------------------------------------
 REM Debug mode?
 set DEBUG_MODE=0
@@ -103,10 +103,9 @@ REM the files that we want to remove/rename
 REM =================================================================
 
 REM set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc"
-REM set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base
-REM engine\tools r6\cache r6\config r6\inputs V2077"
+REM set "delete_paths=bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base engine\tools r6\cache r6\config r6\inputs V2077"
 
-set "rename_paths=archive\pc\mod mods bin\x64\plugins r6\scripts r6\tweaks red4ext engine\tools engine\config\platform\pc bin\x64\version.dll bin\x64\LICENSE bin\x64\global.ini bin\x64\d3d11.dll bin\x64\global.ini bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base engine\tools r6\cache r6\config r6\input"
+set "rename_paths=archive\pc\mod mods bin\x64\plugins red4ext engine\tools engine\config\platform\pc bin\x64\LICENSE bin\x64\global.ini bin\x64\d3d11.dll bin\x64\powrprof.dll bin\x64\winmm.dll bin\x64\version.dll engine\config\base engine\config\galaxy engine\config\base r6\scripts r6\tweaks r6\storages r6\cache r6\config r6\input r6\audioware bin\x64\cyberpunk2077_addresses.json"
 
 REM some folders are outdated and ancient and you should NOT have them.
 set "delete_paths=V2077"
@@ -163,7 +162,7 @@ if (!numDeletedFiles!) gtr (0) (
   echo The following outdated files were deleted: >> "!LOGFILE!"
   echo !separator! >> "!LOGFILE!"
   for /L %%i in (1,1,%numDeletedFiles%) do echo !tab!!deleted_paths_list[%%i]! >> "!LOGFILE!"  
-  echo. >> "!LOGFILE!"
+  echo. >> "!LOGFILE!"
 )
 
 echo !separator! >> "!LOGFILE!
